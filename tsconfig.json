@@ -18,7 +18,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "types": ["vite/client","@types/w3c-web-serial"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

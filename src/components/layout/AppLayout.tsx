@@ -1,10 +1,10 @@
 // src/components/layout/AppLayout.tsx
 import { useState } from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package, TrendingUp,
   Users, Truck, BarChart3, Settings, LogOut,
-  Menu, X, Wifi, WifiOff, AlertTriangle, ChevronRight,
+  Menu, X, Wifi, WifiOff
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,7 @@ export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { user, logout, hasPermission, hasFeature } = useAuth()
   const { isOnline, pendingCount } = useOfflineSync()
-  const navigate = useNavigate()
+  // const navigate = useNavigate()
 
   const navItems: NavItem[] = [
     { to: '/app/dashboard',   label: 'Dashboard',   icon: LayoutDashboard },
