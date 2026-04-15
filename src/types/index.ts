@@ -38,6 +38,8 @@ export interface LoginResponse {
     email: string
     fullName: string
     role: string
+    roleName: string
+    permissions: string[]
     branchId: string | null
     tenantId: string
     tenantName: string

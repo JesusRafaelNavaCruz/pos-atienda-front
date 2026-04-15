@@ -4,7 +4,8 @@ import { Outlet, NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, ShoppingCart, Package, TrendingUp,
   Users, Truck, BarChart3, Settings, LogOut,
-  Menu, X, Wifi, WifiOff
+  Menu, Wifi, WifiOff,
+  ChevronLeft
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -26,16 +27,15 @@ export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { user, logout, hasPermission, hasFeature } = useAuth()
   const { isOnline, pendingCount } = useOfflineSync()
-  // const navigate = useNavigate()
 
   const navItems: NavItem[] = [
-    { to: '/app/dashboard',   label: 'Dashboard',   icon: LayoutDashboard },
-    { to: '/app/pos',         label: 'Terminal POS', icon: ShoppingCart },
-    { to: '/app/inventory',   label: 'Inventario',   icon: Package,     permission: { resource: 'products',  action: 'read' } },
-    { to: '/app/sales',       label: 'Ventas',       icon: TrendingUp,  permission: { resource: 'sales',     action: 'read' } },
-    { to: '/app/customers',   label: 'Clientes',     icon: Users,       permission: { resource: 'customers', action: 'read' }, feature: 'customers' },
-    { to: '/app/suppliers',   label: 'Proveedores',  icon: Truck,       permission: { resource: 'suppliers', action: 'read' }, feature: 'suppliers' },
-    { to: '/app/reports',     label: 'Reportes',     icon: BarChart3,   permission: { resource: 'reports',   action: 'view_sales' } },
+    { to: '/app/dashboard',   label: 'Dashboard',    icon: LayoutDashboard },
+    { to: '/app/pos',         label: 'Vender', icon: ShoppingCart },
+    { to: '/app/inventory',   label: 'Inventario',   icon: Package,    permission: { resource: 'products',  action: 'read' } },
+    { to: '/app/sales',       label: 'Ventas',       icon: TrendingUp, permission: { resource: 'sales',     action: 'read' } },
+    { to: '/app/customers',   label: 'Clientes',     icon: Users,      permission: { resource: 'customers', action: 'read' }, feature: 'customers' },
+    { to: '/app/suppliers',   label: 'Proveedores',  icon: Truck,      permission: { resource: 'suppliers', action: 'read' }, feature: 'suppliers' },
+    { to: '/app/reports',     label: 'Reportes',     icon: BarChart3,  permission: { resource: 'reports',   action: 'view_sales' } },
     { to: '/app/settings',    label: 'Configuración',icon: Settings },
   ]
 
@@ -46,26 +46,30 @@ export function AppLayout() {
   })
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-slate-950 overflow-hidden relative">
+      {/* Gradients */}
+      <div className="absolute w-150 h-150 bg-indigo-600/20 rounded-full blur-3xl -top-40 -left-40 pointer-events-none" />
+      <div className="absolute w-125 h-125 bg-cyan-500/20 rounded-full blur-3xl -bottom-32 -right-32 pointer-events-none" />
+
       {/* Sidebar */}
       <aside
         className={cn(
-          'flex flex-col border-r bg-card transition-all duration-200',
+          'relative z-10 flex flex-col border-r border-white/10 bg-white/5 backdrop-blur-xl transition-all duration-200',
           sidebarOpen ? 'w-60' : 'w-16',
         )}
       >
         {/* Logo + toggle */}
-        <div className="flex h-16 items-center justify-between px-4 border-b">
+        <div className="flex h-16 items-center justify-between px-4 border-b border-white/10">
           {sidebarOpen && (
-            <span className="font-semibold text-lg truncate">POS Abarrotes</span>
+            <span className="font-semibold text-lg truncate text-white">POS Atienda</span>
           )}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="shrink-0"
+            className="shrink-0 text-white/60 hover:text-white hover:bg-white/10"
           >
-            {sidebarOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+            {sidebarOpen ? <ChevronLeft className="size-4" /> : <Menu className="size-4" />}
           </Button>
         </div>
 
@@ -77,10 +81,10 @@ export function AppLayout() {
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-md mx-2 transition-colors',
+                  'flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl mx-2 transition-all',
                   isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                    : 'text-white/60 hover:bg-white/10 hover:text-white',
                 )
               }
             >
@@ -98,11 +102,13 @@ export function AppLayout() {
         </nav>
 
         {/* Footer: estado online + usuario */}
-        <div className="border-t p-3 space-y-2">
+        <div className="border-t border-white/10 p-3 space-y-2">
           {/* Estado de red */}
           <div className={cn(
-            'flex items-center gap-2 px-2 py-1.5 rounded-md text-xs',
-            isOnline ? 'text-green-700 bg-green-50' : 'text-yellow-700 bg-yellow-50',
+            'flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs',
+            isOnline
+              ? 'text-emerald-400 bg-emerald-400/10'
+              : 'text-yellow-400 bg-yellow-400/10',
           )}>
             {isOnline ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}
             {sidebarOpen && (
@@ -117,17 +123,22 @@ export function AppLayout() {
           {/* Usuario */}
           {user && (
             <div className={cn('flex items-center gap-2 px-2', !sidebarOpen && 'justify-center')}>
-              <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+              <div className="size-8 rounded-full bg-indigo-600/30 flex items-center justify-center text-xs font-semibold text-indigo-300 shrink-0">
                 {user.fullName.charAt(0).toUpperCase()}
               </div>
               {sidebarOpen && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{user.fullName}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+                  <p className="text-xs font-medium truncate text-white">{user.fullName}</p>
+                  <p className="text-xs text-white/50 capitalize">{user.role}</p>
                 </div>
               )}
               {sidebarOpen && (
-                <Button variant="ghost" size="icon" onClick={() => logout()} className="size-8 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => logout()}
+                  className="size-8 shrink-0 text-white/60 hover:text-white hover:bg-white/10"
+                >
                   <LogOut className="size-4" />
                 </Button>
               )}
@@ -137,7 +148,7 @@ export function AppLayout() {
       </aside>
 
       {/* Contenido principal */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="relative z-10 flex-1 flex flex-col overflow-hidden bg-slate-50 rounded-tl-2xl rounded-bl-2xl">
         <div className="flex-1 overflow-y-auto">
           <Outlet />
         </div>

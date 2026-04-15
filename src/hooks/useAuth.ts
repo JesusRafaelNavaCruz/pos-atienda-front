@@ -4,7 +4,7 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
-import { authApi } from '@/api'
+import { authApi, subscriptionsApi } from '@/api'
 import { toast } from 'sonner'
 import type { FeatureKey } from '@/types'
 import { useAuthStore } from '@/store/auth.store'
@@ -23,8 +23,8 @@ export function useAuth() {
           email:       data.user.email,
           fullName:    data.user.fullName ?? data.user.email,
           role:        data.user.role,
-          roleName:    data.user.role,
-          permissions: [],
+          roleName:    data.user.roleName,
+          permissions: data.user.permissions,
           branch:      null,
           tenantId:    data.user.tenantId,
         },
@@ -32,15 +32,9 @@ export function useAuth() {
         refreshToken: data.refreshToken,
         tenantSlug:   data.user.tenantSlug,
       })
-      // Cargar perfil completo con permisos
-      authApi.me().then((me) => {
-        store.setSession({
-          user:         me,
-          accessToken:  data.accessToken,
-          refreshToken: data.refreshToken,
-          tenantSlug:   data.user.tenantSlug,
-        })
-      })
+      subscriptionsApi.current()
+        .then(({ plan }) => store.setFeatures(plan.features))
+        .catch(() => {/* features quedan vacías, hasFeature devolverá false para no-owners */})
       navigate('/app/dashboard')
     },
     onError: (err: unknown) => {

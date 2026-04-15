@@ -1,8 +1,8 @@
 // src/pages/pos/PosPage.tsx
 // Terminal de ventas completa con:
 //   - Búsqueda y escaneo de productos
-//   - Integración con báscula (productos por peso)
-//   - Carrito con descuentos por ítem
+//   - Grid de productos
+//   - Sidebar del carrito con descuentos
 //   - Cobro en efectivo y tarjeta
 //   - Impresión de ticket
 
@@ -19,11 +19,12 @@ import {
   Banknote,
   Check,
   Loader2,
+  ShoppingCart,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Feature } from "@/components/layout/Guards";
 import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -33,11 +34,40 @@ import { useThermalPrinter } from "@/hooks/useThermalPrinter";
 import { productsApi, salesApi } from "@/api";
 import { getProductByBarcode } from "@/lib/db";
 import { formatCurrency, cn } from "@/lib/utils";
-import type { CartItem, PaymentMethod } from "@/types";
+import type { CartItem, PaymentMethod, Product } from "@/types";
 
-// ─── Componente de ítem del carrito ──────────────────────────────────────────
+// ─── Product card ────────────────────────────────────────────────────────────
 
-function CartItemRow({
+function ProductCard({
+  product,
+  onAdd,
+}: {
+  product: Product;
+  onAdd: (product: Product) => void;
+}) {
+  return (
+    <button
+      onClick={() => onAdd(product)}
+      className="backdrop-blur-xl bg-white/80 border border-white/50 rounded-xl p-3 hover:shadow-lg hover:bg-white transition-all text-left group"
+    >
+      <div className="mb-2 h-24 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
+        <ShoppingCart className="text-slate-300 size-8" />
+      </div>
+      <p className="text-sm font-semibold truncate group-hover:text-indigo-600">{product.name}</p>
+      <p className="text-xs text-muted-foreground mb-1">
+        {product.sku || product.barcode || "—"}
+      </p>
+      <div className="flex justify-between items-end">
+        <span className="text-lg font-bold text-indigo-600">{formatCurrency(product.price)}</span>
+        <Badge variant="secondary" className="text-xs">{product.stock} {product.unit}</Badge>
+      </div>
+    </button>
+  );
+}
+
+// ─── Cart item in sidebar ────────────────────────────────────────────────────
+
+function CartItemSidebar({
   item,
   onQtyChange,
   onRemove,
@@ -47,50 +77,48 @@ function CartItemRow({
   onRemove: (productId: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-2 py-2 border-b last:border-0">
+    <div className="flex items-start gap-2 py-3 border-b border-white/10 last:border-0 group">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{item.product.name}</p>
-        <p className="text-xs text-muted-foreground">
-          {formatCurrency(item.unit_price)} c/u
-        </p>
+        <p className="text-sm font-medium text-white truncate">{item.product.name}</p>
+        <p className="text-xs text-white/50">{formatCurrency(item.unit_price)} c/u</p>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon"
-          className="size-7"
+          className="size-6 text-white/60 hover:text-white hover:bg-white/20"
           onClick={() => onQtyChange(item.product.id, item.quantity - 1)}
         >
           <Minus className="size-3" />
         </Button>
-        <span className="w-10 text-center text-sm font-mono">
+        <span className="w-6 text-center text-xs font-mono text-white font-bold">
           {item.quantity}
         </span>
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon"
-          className="size-7"
+          className="size-6 text-white/60 hover:text-white hover:bg-white/20"
           onClick={() => onQtyChange(item.product.id, item.quantity + 1)}
         >
           <Plus className="size-3" />
         </Button>
       </div>
-      <span className="w-24 text-right text-sm font-semibold">
-        {formatCurrency(item.subtotal)}
-      </span>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-7 text-destructive hover:text-destructive"
-        onClick={() => onRemove(item.product.id)}
-      >
-        <Trash2 className="size-3" />
-      </Button>
+      <div className="text-right">
+        <p className="text-sm font-bold text-emerald-400">{formatCurrency(item.subtotal)}</p>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-5 text-red-400 hover:text-red-300 hover:bg-red-500/20"
+          onClick={() => onRemove(item.product.id)}
+        >
+          <Trash2 className="size-3" />
+        </Button>
+      </div>
     </div>
   );
 }
 
-// ─── Panel de cobro ──────────────────────────────────────────────────────────
+// ─── Payment panel ───────────────────────────────────────────────────────────
 
 function PaymentPanel({
   total,
@@ -114,7 +142,12 @@ function PaymentPanel({
         <Button
           variant={method === "cash" ? "default" : "outline"}
           onClick={() => setMethod("cash")}
-          className="gap-2"
+          className={cn(
+            "gap-2",
+            method === "cash"
+              ? "bg-emerald-600 hover:bg-emerald-500"
+              : "bg-white/10 hover:bg-white/20 text-white border-white/20"
+          )}
         >
           <Banknote className="size-4" />
           Efectivo
@@ -122,7 +155,7 @@ function PaymentPanel({
         <Feature
           flag="card_payments"
           fallback={
-            <Button variant="outline" disabled className="gap-2 opacity-50">
+            <Button variant="outline" disabled className="gap-2 opacity-50 bg-white/5">
               <CreditCard className="size-4" />
               Tarjeta
             </Button>
@@ -131,7 +164,12 @@ function PaymentPanel({
           <Button
             variant={method === "card" ? "default" : "outline"}
             onClick={() => setMethod("card")}
-            className="gap-2"
+            className={cn(
+              "gap-2",
+              method === "card"
+                ? "bg-blue-600 hover:bg-blue-500"
+                : "bg-white/10 hover:bg-white/20 text-white border-white/20"
+            )}
           >
             <CreditCard className="size-4" />
             Tarjeta
@@ -141,30 +179,26 @@ function PaymentPanel({
 
       {/* Monto recibido (solo efectivo) */}
       {method === "cash" && (
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">
-            Recibido
-          </label>
+        <div className="space-y-2">
+          <label className="text-xs text-white/60 font-medium">Recibido</label>
           <Input
             type="number"
             placeholder={formatCurrency(total)}
             value={received}
             onChange={(e) => setReceived(e.target.value)}
-            className="text-lg font-mono text-right"
+            className="text-lg font-mono text-right bg-white/10 border-white/20 text-white placeholder:text-white/30"
           />
           {change > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Cambio:</span>
-              <span className="font-bold text-green-600">
-                {formatCurrency(change)}
-              </span>
+            <div className="flex justify-between text-sm bg-emerald-500/20 rounded-lg p-2 border border-emerald-500/30">
+              <span className="text-emerald-300">Cambio:</span>
+              <span className="font-bold text-emerald-400">{formatCurrency(change)}</span>
             </div>
           )}
         </div>
       )}
 
       <Button
-        className="w-full h-12 text-base gap-2"
+        className="w-full h-12 text-base gap-2 bg-indigo-600 hover:bg-indigo-500 active:scale-[.98] transition-all"
         onClick={() =>
           onConfirm(method, method === "cash" ? receivedNum : total)
         }
@@ -181,7 +215,7 @@ function PaymentPanel({
   );
 }
 
-// ─── Página principal del POS ─────────────────────────────────────────────────
+// ─── Main POS Page ───────────────────────────────────────────────────────────
 
 export default function PosPage() {
   const qc = useQueryClient();
@@ -191,14 +225,11 @@ export default function PosPage() {
   const printer = useThermalPrinter();
 
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState<
-    (typeof import("@/types").Product)[] | []
-  >([]);
+  const [results, setResults] = useState<Product[]>([]);
   const [searching, setSearching] = useState(false);
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Buscar producto por texto
   const handleSearch = useCallback(async (value: string) => {
     setSearch(value);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
@@ -209,7 +240,7 @@ export default function PosPage() {
     searchTimeout.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const { data } = await productsApi.list({ search: value, limit: 8 });
+        const { data } = await productsApi.list({ search: value, limit: 12 });
         setResults(data);
       } finally {
         setSearching(false);
@@ -217,9 +248,8 @@ export default function PosPage() {
     }, 300);
   }, []);
 
-  // Agregar producto al carrito
   const addProduct = useCallback(
-    async (product: (typeof results)[number]) => {
+    async (product: Product) => {
       let qty = 1;
       if (product.sold_by_weight && scale.weight) {
         qty = scale.weight;
@@ -231,10 +261,8 @@ export default function PosPage() {
     [cart, scale.weight],
   );
 
-  // Manejar escaneo de código de barras
   useBarcodeScan({
     onScan: async (code) => {
-      // Primero intentar desde caché offline
       let product = await getProductByBarcode(code);
       if (!product) {
         try {
@@ -249,7 +277,6 @@ export default function PosPage() {
     },
   });
 
-  // Crear venta
   const saleMutation = useMutation({
     mutationFn: async ({
       method,
@@ -281,7 +308,6 @@ export default function PosPage() {
     },
     onSuccess: async (sale) => {
       toast.success(`Venta ${sale.folio} registrada`);
-      // Imprimir ticket si la impresora está conectada
       if (printer.isConnected) {
         await printer.printSale(sale, user?.tenantId ?? "Mi Tienda");
         if (saleMutation.variables?.method === "cash") {
@@ -302,192 +328,168 @@ export default function PosPage() {
   const isEmpty = cart.items.length === 0;
 
   return (
-    <div className="h-full flex pos-no-select">
-      {/* Panel izquierdo: búsqueda + resultados */}
-      <div className="w-80 border-r flex flex-col bg-muted/20">
-        <div className="p-3 border-b space-y-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar producto o escanear..."
-              value={search}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-9"
-              autoFocus
-            />
+    <div className="h-full flex flex-col bg-slate-50 pos-no-select">
+      {/* Header con búsqueda */}
+      <div className="bg-white border-b p-4 sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto space-y-3">
+          <div className="flex items-center gap-3">
+            <ShoppingCart className="size-6 text-indigo-600" />
+            <h1 className="text-2xl font-bold">Terminal POS</h1>
           </div>
-
-          {/* Báscula */}
-          <Feature flag="scale">
-            <div
-              className={cn(
-                "flex items-center justify-between px-3 py-2 rounded-md text-sm",
-                scale.isConnected
-                  ? "bg-green-50 text-green-700"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <Scale className="size-4" />
-                {scale.isConnected ? (
-                  <span className="font-mono font-bold">
-                    {(scale.weight ?? 0).toFixed(3)} kg
-                  </span>
-                ) : (
-                  <span>Báscula desconectada</span>
-                )}
-              </div>
-              {!scale.isConnected && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-xs"
-                  onClick={scale.connect}
-                >
-                  Conectar
-                </Button>
-              )}
+          <div className="flex gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar producto o escanear..."
+                value={search}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-9 h-10"
+                autoFocus
+              />
             </div>
-          </Feature>
+            <Feature flag="scale">
+              <div
+                className={cn(
+                  "flex items-center justify-between px-4 py-2 rounded-lg text-sm font-mono font-bold min-w-fit",
+                  scale.isConnected
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-slate-100 text-muted-foreground",
+                )}
+              >
+                <Scale className="size-4 mr-2" />
+                {scale.isConnected
+                  ? `${(scale.weight ?? 0).toFixed(3)} kg`
+                  : "Báscula desconectada"}
+              </div>
+            </Feature>
+          </div>
         </div>
+      </div>
 
-        {/* Resultados de búsqueda */}
-        <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-hidden flex gap-4 p-4">
+        {/* Área central: grid de productos */}
+        <div className="flex-1 flex flex-col min-w-0">
           {searching && (
-            <div className="p-4 text-center text-sm text-muted-foreground">
+            <div className="flex items-center justify-center p-8 text-muted-foreground">
+              <Loader2 className="animate-spin mr-2" />
               Buscando...
             </div>
           )}
-          {results.map((product) => (
-            <button
-              key={product.id}
-              onClick={() => addProduct(product)}
-              className="w-full flex items-center gap-3 p-3 border-b hover:bg-background transition-colors text-left"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{product.name}</p>
-                <p className="text-xs text-muted-foreground font-mono">
-                  {product.barcode ?? product.sku ?? "—"}
-                </p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-sm font-bold">
-                  {formatCurrency(product.price)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Stock: {product.stock} {product.unit}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Panel central: carrito */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="p-3 border-b flex items-center justify-between">
-          <h2 className="font-semibold">Carrito</h2>
-          {!isEmpty && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive"
-              onClick={cart.clearCart}
-            >
-              <Trash2 className="size-4" />
-              Vaciar
-            </Button>
+          {!searching && results.length === 0 && search && (
+            <div className="flex items-center justify-center p-8 text-muted-foreground">
+              Sin resultados para "{search}"
+            </div>
+          )}
+          {!searching && results.length === 0 && !search && (
+            <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+              <Search className="size-16 opacity-20 mb-2" />
+              <p>Busca o escanea un producto para comenzar</p>
+            </div>
+          )}
+          {results.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto pb-4">
+              {results.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onAdd={addProduct}
+                />
+              ))}
+            </div>
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3">
-          {isEmpty ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
-              <Search className="size-12 opacity-20" />
-              <p className="text-sm">Escanea o busca un producto</p>
+        {/* Sidebar derecho: carrito */}
+        <div className="w-80 backdrop-blur-xl bg-slate-900/80 border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+          {/* Encabezado */}
+          <div className="p-4 border-b border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="text-white size-5" />
+              <h2 className="font-bold text-white">Carrito</h2>
             </div>
-          ) : (
-            cart.items.map((item) => (
-              <CartItemRow
-                key={item.product.id}
-                item={item}
-                onQtyChange={cart.updateQuantity}
-                onRemove={cart.removeItem}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Totales */}
-        {!isEmpty && (
-          <div className="border-t p-3 space-y-1 bg-muted/20">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatCurrency(cart.subtotal)}</span>
-            </div>
-            {cart.discount > 0 && (
-              <div className="flex justify-between text-sm text-green-600">
-                <span>Descuento</span>
-                <span>-{formatCurrency(cart.discount)}</span>
-              </div>
+            {!isEmpty && (
+              <Badge className="bg-indigo-600 text-white">
+                {cart.items.length} artículos
+              </Badge>
             )}
-            <Separator />
-            <div className="flex justify-between font-bold text-lg">
-              <span>Total</span>
-              <span>{formatCurrency(cart.total)}</span>
-            </div>
           </div>
-        )}
-      </div>
 
-      {/* Panel derecho: cobro + hardware */}
-      <div className="w-72 border-l flex flex-col">
-        <div className="p-3 border-b flex items-center justify-between">
-          <h2 className="font-semibold">Cobro</h2>
-          {/* Impresora */}
-          <Feature flag="thermal_printer">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={
-                printer.isConnected ? printer.disconnect : printer.connect
-              }
-              className={cn(
-                printer.isConnected
-                  ? "text-green-600"
-                  : "text-muted-foreground",
-              )}
-            >
-              <Printer className="size-4" />
-            </Button>
-          </Feature>
-        </div>
-
-        <div className="flex-1 p-3">
           {isEmpty ? (
-            <p className="text-sm text-muted-foreground text-center mt-8">
-              Agrega productos al carrito para cobrar
-            </p>
+            <div className="flex-1 flex items-center justify-center text-white/50">
+              <p className="text-sm text-center">El carrito está vacío</p>
+            </div>
           ) : (
-            <PaymentPanel
-              total={cart.total}
-              onConfirm={(method, amount) =>
-                saleMutation.mutate({ method, amount })
-              }
-              isLoading={saleMutation.isPending}
-            />
+            <>
+              {/* Items del carrito */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-1">
+                {cart.items.map((item) => (
+                  <CartItemSidebar
+                    key={item.product.id}
+                    item={item}
+                    onQtyChange={cart.updateQuantity}
+                    onRemove={cart.removeItem}
+                  />
+                ))}
+              </div>
+
+              {/* Totales */}
+              <div className="p-4 border-t border-white/10 space-y-2">
+                <div className="flex justify-between text-sm text-white/60">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(cart.subtotal)}</span>
+                </div>
+                {cart.discount > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-400">
+                    <span>Descuento</span>
+                    <span>-{formatCurrency(cart.discount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-lg text-white pt-2 border-t border-white/10">
+                  <span>Total</span>
+                  <span className="text-indigo-400">{formatCurrency(cart.total)}</span>
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="p-4 space-y-3 border-t border-white/10">
+                <PaymentPanel
+                  total={cart.total}
+                  onConfirm={(method, amount) =>
+                    saleMutation.mutate({ method, amount })
+                  }
+                  isLoading={saleMutation.isPending}
+                />
+                <Button
+                  variant="outline"
+                  className="w-full text-white border-white/20 hover:bg-white/10"
+                  onClick={cart.clearCart}
+                >
+                  <Trash2 className="size-4 mr-2" />
+                  Vaciar carrito
+                </Button>
+
+                {/* Impresora */}
+                <Feature flag="thermal_printer">
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full text-sm",
+                      printer.isConnected
+                        ? "text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                        : "text-white/50 border-white/10 hover:bg-white/10"
+                    )}
+                    onClick={
+                      printer.isConnected ? printer.disconnect : printer.connect
+                    }
+                  >
+                    <Printer className="size-4 mr-2" />
+                    {printer.isConnected ? "Impresora lista" : "Impresora desconectada"}
+                  </Button>
+                </Feature>
+              </div>
+            </>
           )}
         </div>
-
-        {/* Items count badge */}
-        {!isEmpty && (
-          <div className="p-3 border-t">
-            <p className="text-xs text-center text-muted-foreground">
-              {cart.items.length} artículo(s) ·{" "}
-              {cart.items.reduce((s, i) => s + i.quantity, 0)} unidades
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
