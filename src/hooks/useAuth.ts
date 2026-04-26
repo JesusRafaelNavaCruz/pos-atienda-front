@@ -25,7 +25,7 @@ export function useAuth() {
           role:        data.user.role,
           roleName:    data.user.roleName,
           permissions: data.user.permissions,
-          branch:      null,
+          branchId:    data.user.branchId,
           tenantId:    data.user.tenantId,
         },
         accessToken:  data.accessToken,

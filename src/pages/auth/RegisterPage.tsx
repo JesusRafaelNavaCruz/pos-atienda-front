@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Loader2, ShoppingCart } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useState } from 'react'
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { authApi } from '@/api';
-import isotipo from "@/assets/isotipo.png";
+import isotipo from "@/assets/logo_pos_atienda.png";
 
 const schema = z.object({
   tenantName:    z.string().min(2, 'Mínimo 2 caracteres'),

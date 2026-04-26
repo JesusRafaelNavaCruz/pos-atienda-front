@@ -6,7 +6,7 @@
 //   - Cobro en efectivo y tarjeta
 //   - Impresión de ticket
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
@@ -286,7 +286,7 @@ export default function PosPage() {
       amount: number;
     }) => {
       const sale = await salesApi.create({
-        branch_id: user!.branch?.id ?? "",
+        branch_id: user?.branchId ?? "",
         items: cart.items.map((i) => ({
           product_id: i.product.id,
           quantity: i.quantity,
@@ -327,6 +327,21 @@ export default function PosPage() {
 
   const isEmpty = cart.items.length === 0;
 
+  const getProducts = async () => {
+    if (results.length === 0) {
+      try {
+        const { data } = await productsApi.list();
+        setResults(data);
+      } finally {
+        setSearching(false)
+      }
+    }
+  }
+
+  useEffect(() => {
+    getProducts()
+  }, [results])
+
   return (
     <div className="h-full flex flex-col bg-slate-50 pos-no-select">
       {/* Header con búsqueda */}
@@ -334,7 +349,7 @@ export default function PosPage() {
         <div className="max-w-6xl mx-auto space-y-3">
           <div className="flex items-center gap-3">
             <ShoppingCart className="size-6 text-indigo-600" />
-            <h1 className="text-2xl font-bold">Terminal POS</h1>
+            <h1 className="text-2xl font-bold">POS Atienda</h1>
           </div>
           <div className="flex gap-3">
             <div className="flex-1 relative">

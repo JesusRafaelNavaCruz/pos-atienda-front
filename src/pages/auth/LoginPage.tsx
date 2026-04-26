@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
-import isotipo from "@/assets/isotipo.png";
+import logoPosAtienda from "@/assets/logo_pos_atienda.png";
 
 const REMEMBER_KEY = 'pos-remember-me'
 
@@ -72,7 +72,7 @@ export default function LoginPage() {
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center">
             <div className="bg-slate-100 p-4 rounded-2xl w-24 shadow-lg mb-4">
-              <img src={isotipo} alt="POS Atienda" />
+              <img src={logoPosAtienda} alt="POS Atienda" />
             </div>
           </div>
           <CardTitle className="text-3xl font-bold">POS Atienda</CardTitle>
