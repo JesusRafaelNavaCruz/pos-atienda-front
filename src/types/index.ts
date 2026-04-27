@@ -26,7 +26,7 @@ export interface AuthUser {
   role: string
   roleName: string
   permissions: string[]   // formato: 'resource:action'
-  branch: Branch | null
+  branchId: string | null
   tenantId: string
 }
 
@@ -38,6 +38,8 @@ export interface LoginResponse {
     email: string
     fullName: string
     role: string
+    roleName: string
+    permissions: string[]
     branchId: string | null
     tenantId: string
     tenantName: string

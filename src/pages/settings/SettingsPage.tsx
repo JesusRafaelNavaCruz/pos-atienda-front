@@ -23,7 +23,10 @@ import { usersApi, subscriptionsApi } from '@/api'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { User, Plan } from '@/types'
 
-// ─── Subcomponente: lista de usuarios ────────────────────────────────────────
+const glassCard  = 'backdrop-blur-xl bg-slate-800/75 border border-white/10 shadow-2xl text-white'
+const inputClass = 'bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:ring-indigo-500'
+
+// ─── Usuarios ────────────────────────────────────────────────────────────────
 
 const newUserSchema = z.object({
   full_name: z.string().min(2, 'Nombre requerido'),
@@ -37,14 +40,8 @@ function UsersTab() {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
 
-  const { data: users, isLoading }  = useQuery({
-    queryKey: ['users'],
-    queryFn: usersApi.list,
-  })
-  const { data: roles } = useQuery({
-    queryKey: ['roles'],
-    queryFn: usersApi.roles,
-  })
+  const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list() })
+  const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: () => usersApi.roles() })
 
   const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<NewUserData>({
     resolver: zodResolver(newUserSchema),
@@ -52,12 +49,7 @@ function UsersTab() {
 
   const createMutation = useMutation({
     mutationFn: usersApi.create,
-    onSuccess: () => {
-      toast.success('Usuario creado')
-      qc.invalidateQueries({ queryKey: ['users'] })
-      setOpen(false)
-      reset()
-    },
+    onSuccess: () => { toast.success('Usuario creado'); qc.invalidateQueries({ queryKey: ['users'] }); setOpen(false); reset() },
     onError: (err: unknown) => {
       const msg = (err as any)?.response?.data?.error?.message ?? 'Error al crear usuario'
       toast.error(msg)
@@ -65,8 +57,7 @@ function UsersTab() {
   })
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      usersApi.update(id, { is_active }),
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) => usersApi.update(id, { is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
     onError: () => toast.error('No se pudo actualizar el usuario'),
   })
@@ -75,88 +66,96 @@ function UsersTab() {
     <div className="space-y-4">
       <div className="flex justify-end">
         <Can resource="users" action="create">
-          <Button onClick={() => setOpen(true)} size="sm">
+          <Button
+            onClick={() => setOpen(true)} size="sm"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30"
+          >
             <Plus className="size-4" /> Nuevo usuario
           </Button>
         </Can>
       </div>
 
-      <div className="rounded-md border divide-y">
-        {isLoading
-          ? [...Array(4)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4 p-4">
-                <Skeleton className="size-9 rounded-full" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-3 w-24" />
+      <Card className={glassCard}>
+        <CardContent className="p-0 divide-y divide-white/10">
+          {isLoading
+            ? [...Array(4)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4 p-4">
+                  <Skeleton className="size-9 rounded-full bg-white/10" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-40 bg-white/10" />
+                    <Skeleton className="h-3 w-24 bg-white/10" />
+                  </div>
                 </div>
-              </div>
-            ))
-          : (users ?? []).map((user: User) => (
-              <div key={user.id} className="flex items-center gap-4 p-4">
-                <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
-                  {user.full_name.charAt(0).toUpperCase()}
+              ))
+            : (users ?? []).map((user: User) => (
+                <div key={user.id} className="flex items-center gap-4 p-4">
+                  <div className="size-9 rounded-full bg-indigo-600/30 flex items-center justify-center text-sm font-semibold text-indigo-300 shrink-0">
+                    {user.full_name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">{user.full_name}</p>
+                    <p className="text-xs text-white/50">{user.email}</p>
+                  </div>
+                  <Badge variant="secondary" className="capitalize text-xs bg-white/10 text-white/70 border-white/10">
+                    {user.role.name}
+                  </Badge>
+                  <Can resource="users" action="update">
+                    {!user.role?.code?.includes('owner') && (
+                      <Switch
+                        checked={user.is_active}
+                        onCheckedChange={(v) => toggleMutation.mutate({ id: user.id, is_active: v })}
+                      />
+                    )}
+                  </Can>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{user.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
-                </div>
-                <Badge variant="secondary" className="capitalize text-xs">
-                  {user.role.name}
-                </Badge>
-                <Can resource="users" action="update">
-                  {!user.role.code.includes('owner') && (
-                    <Switch
-                      checked={user.is_active}
-                      onCheckedChange={(v) => toggleMutation.mutate({ id: user.id, is_active: v })}
-                    />
-                  )}
-                </Can>
-              </div>
-            ))
-        }
-      </div>
+              ))
+          }
+        </CardContent>
+      </Card>
 
       {/* Modal nuevo usuario */}
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset() }}>
-        <DialogContent>
+        <DialogContent className="backdrop-blur-xl bg-slate-900 border-white/10 text-white">
           <DialogHeader>
-            <DialogTitle>Nuevo usuario</DialogTitle>
+            <DialogTitle className="text-white">Nuevo usuario</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit((data) => createMutation.mutate(data))} className="space-y-4">
             <div className="space-y-2">
-              <Label>Nombre completo *</Label>
-              <Input {...register('full_name')} placeholder="Juan García" />
-              {errors.full_name && <p className="text-xs text-destructive">{errors.full_name.message}</p>}
+              <Label className="text-white/80">Nombre completo *</Label>
+              <Input className={inputClass} {...register('full_name')} placeholder="Juan García" />
+              {errors.full_name && <p className="text-xs text-red-400">{errors.full_name.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Correo *</Label>
-              <Input {...register('email')} type="email" placeholder="usuario@tienda.com" />
-              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+              <Label className="text-white/80">Correo *</Label>
+              <Input className={inputClass} {...register('email')} type="email" placeholder="usuario@tienda.com" />
+              {errors.email && <p className="text-xs text-red-400">{errors.email.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Contraseña *</Label>
-              <Input {...register('password')} type="password" placeholder="Mínimo 8 caracteres" />
-              {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+              <Label className="text-white/80">Contraseña *</Label>
+              <Input className={inputClass} {...register('password')} type="password" placeholder="Mínimo 8 caracteres" />
+              {errors.password && <p className="text-xs text-red-400">{errors.password.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Rol *</Label>
+              <Label className="text-white/80">Rol *</Label>
               <Select onValueChange={(v) => setValue('role_id', v)}>
-                <SelectTrigger>
+                <SelectTrigger className={inputClass}>
                   <SelectValue placeholder="Seleccionar rol" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-white/10 text-white">
                   {(roles ?? []).map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
+                    <SelectItem key={role.id} value={role.id} className="focus:bg-white/10 focus:text-white">
                       {role.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.role_id && <p className="text-xs text-destructive">{errors.role_id.message}</p>}
+              {errors.role_id && <p className="text-xs text-red-400">{errors.role_id.message}</p>}
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button
+                type="submit" disabled={createMutation.isPending}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white"
+              >
                 {createMutation.isPending && <Loader2 className="size-4 animate-spin" />}
                 Crear usuario
               </Button>
@@ -168,48 +167,47 @@ function UsersTab() {
   )
 }
 
-// ─── Subcomponente: roles y permisos ─────────────────────────────────────────
+// ─── Roles ────────────────────────────────────────────────────────────────────
 
 function RolesTab() {
-  const { data: roles, isLoading } = useQuery({
-    queryKey: ['roles'],
-    queryFn: usersApi.roles,
-  })
+  const { data: roles, isLoading } = useQuery({ queryKey: ['roles'], queryFn: () => usersApi.roles() })
 
   return (
     <div className="space-y-3">
       {isLoading
-        ? [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)
+        ? [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl bg-slate-800/75" />)
         : (roles ?? []).map((role) => (
-            <Card key={role.id}>
+            <Card key={role.id} className={glassCard}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Shield className="size-4 text-primary" />
+                    <div className="size-9 rounded-lg bg-indigo-600/30 flex items-center justify-center">
+                      <Shield className="size-4 text-indigo-300" />
                     </div>
                     <div>
-                      <p className="font-medium text-sm">{role.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{role.code}</p>
+                      <p className="font-medium text-sm text-white">{role.name}</p>
+                      <p className="text-xs text-white/50 font-mono">{role.code}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
                     {role.is_system && (
-                      <Badge variant="secondary" className="text-xs">Sistema</Badge>
+                      <Badge variant="secondary" className="text-xs bg-white/10 text-white/60 border-white/10">
+                        Sistema
+                      </Badge>
                     )}
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs border-white/20 text-white/60">
                       {role._count?.users ?? 0} usuarios
                     </Badge>
                   </div>
                 </div>
-                {role.permissions && role.permissions.length > 0 && (
+                {role?.permissions && role.permissions?.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {role.permissions.map((rp) => (
                       <span
-                        key={rp.permission_id}
-                        className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full"
+                        key={rp?.permission_id}
+                        className="text-xs bg-white/10 text-white/60 px-2 py-0.5 rounded-full"
                       >
-                        {rp.permission.resource}:{rp.permission.action}
+                        {rp?.permission?.resource}:{rp?.permission?.action}
                       </span>
                     ))}
                   </div>
@@ -222,7 +220,7 @@ function RolesTab() {
   )
 }
 
-// ─── Subcomponente: suscripción ───────────────────────────────────────────────
+// ─── Suscripción ─────────────────────────────────────────────────────────────
 
 const FEATURE_LABELS: Record<string, string> = {
   card_payments:    'Pagos con tarjeta',
@@ -238,6 +236,21 @@ const FEATURE_LABELS: Record<string, string> = {
   basic_reports:    'Reportes básicos',
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  active:   'Activo',
+  trialing: 'Prueba gratuita',
+  past_due: 'Pago vencido',
+  canceled: 'Cancelado',
+  unpaid:   'Sin pagar',
+}
+const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
+  active:   'success',
+  trialing: 'secondary',
+  past_due: 'warning',
+  canceled: 'destructive',
+  unpaid:   'destructive',
+}
+
 function SubscriptionTab() {
   const { isOwner } = useAuth()
 
@@ -245,15 +258,13 @@ function SubscriptionTab() {
     queryKey: ['subscription-current'],
     queryFn: subscriptionsApi.current,
   })
-
   const { data: plans } = useQuery({
     queryKey: ['plans'],
     queryFn: subscriptionsApi.plans,
   })
 
   const portalMutation = useMutation({
-    mutationFn: () =>
-      subscriptionsApi.portal({ return_url: window.location.href }),
+    mutationFn: () => subscriptionsApi.portal({ return_url: window.location.href }),
     onSuccess: ({ portalUrl }) => window.open(portalUrl, '_blank'),
     onError: () => toast.error('No se pudo abrir el portal de facturación'),
   })
@@ -272,40 +283,25 @@ function SubscriptionTab() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-32 w-full rounded-lg" />
-        <Skeleton className="h-48 w-full rounded-lg" />
+        <Skeleton className="h-32 w-full rounded-xl bg-slate-800/75" />
+        <Skeleton className="h-48 w-full rounded-xl bg-slate-800/75" />
       </div>
     )
   }
 
-  const sub  = data?.subscription
-  const plan = data?.plan
+  const sub   = data?.subscription
+  const plan  = data?.plan
   const usage = data?.usage as any
-
-  const STATUS_LABELS: Record<string, string> = {
-    active:   'Activo',
-    trialing: 'Prueba gratuita',
-    past_due: 'Pago vencido',
-    canceled: 'Cancelado',
-    unpaid:   'Sin pagar',
-  }
-  const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
-    active:   'success',
-    trialing: 'secondary',
-    past_due: 'warning',
-    canceled: 'destructive',
-    unpaid:   'destructive',
-  }
 
   return (
     <div className="space-y-6">
       {/* Plan actual */}
       {plan && sub && (
-        <Card>
+        <Card className={glassCard}>
           <CardHeader className="flex-row items-start justify-between">
             <div>
-              <CardTitle>{plan.name}</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-white">{plan.name}</CardTitle>
+              <CardDescription className="text-white/50">
                 {formatCurrency(plan.price_mxn)}/{plan.billing_interval === 'monthly' ? 'mes' : 'año'}
               </CardDescription>
             </div>
@@ -315,54 +311,47 @@ function SubscriptionTab() {
           </CardHeader>
           <CardContent className="space-y-4">
             {sub.trialEndsAt && (
-              <p className="text-sm text-muted-foreground">
-                Período de prueba hasta: <span className="font-medium">{formatDate(sub.trialEndsAt)}</span>
+              <p className="text-sm text-white/60">
+                Período de prueba hasta: <span className="font-medium text-white">{formatDate(sub.trialEndsAt)}</span>
               </p>
             )}
             {sub.currentPeriodEnd && sub.status === 'active' && (
-              <p className="text-sm text-muted-foreground">
-                Próxima renovación: <span className="font-medium">{formatDate(sub.currentPeriodEnd)}</span>
+              <p className="text-sm text-white/60">
+                Próxima renovación: <span className="font-medium text-white">{formatDate(sub.currentPeriodEnd)}</span>
               </p>
             )}
 
             {/* Uso */}
             {usage && (
               <div className="grid grid-cols-2 gap-4 pt-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">Usuarios</p>
-                  <p className="text-sm font-medium">
-                    {usage.users.current} / {usage.users.max === 999 ? '∞' : usage.users.max}
-                  </p>
-                  <div className="h-1.5 bg-muted rounded-full mt-1 overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full"
-                      style={{ width: `${Math.min((usage.users.current / usage.users.max) * 100, 100)}%` }}
-                    />
+                {[
+                  { label: 'Usuarios',   current: usage.users.current,    max: usage.users.max },
+                  { label: 'Sucursales', current: usage.branches.current,  max: usage.branches.max },
+                ].map(({ label, current, max }) => (
+                  <div key={label}>
+                    <p className="text-xs text-white/50">{label}</p>
+                    <p className="text-sm font-medium text-white">
+                      {current} / {max === 999 ? '∞' : max}
+                    </p>
+                    <div className="h-1.5 bg-white/10 rounded-full mt-1 overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-500 rounded-full"
+                        style={{ width: `${Math.min((current / max) * 100, 100)}%` }}
+                      />
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Sucursales</p>
-                  <p className="text-sm font-medium">
-                    {usage.branches.current} / {usage.branches.max === 999 ? '∞' : usage.branches.max}
-                  </p>
-                  <div className="h-1.5 bg-muted rounded-full mt-1 overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full"
-                      style={{ width: `${Math.min((usage.branches.current / usage.branches.max) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
+                ))}
               </div>
             )}
 
-            {/* Features */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-2">
+            {/* Features del plan */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-2">
               {Object.entries(plan.features).map(([key, value]) => {
                 const enabled = value !== 'false' && value !== '0'
                 return (
                   <div key={key} className="flex items-center gap-2">
-                    <div className={`size-1.5 rounded-full ${enabled ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
-                    <span className={`text-xs ${enabled ? '' : 'text-muted-foreground line-through'}`}>
+                    <div className={`size-1.5 rounded-full ${enabled ? 'bg-emerald-400' : 'bg-white/20'}`} />
+                    <span className={`text-xs ${enabled ? 'text-white/80' : 'text-white/30 line-through'}`}>
                       {FEATURE_LABELS[key] ?? key}
                     </span>
                   </div>
@@ -372,10 +361,10 @@ function SubscriptionTab() {
 
             {isOwner && sub.status !== 'canceled' && (
               <Button
-                variant="outline"
-                size="sm"
+                variant="outline" size="sm"
                 onClick={() => portalMutation.mutate()}
                 disabled={portalMutation.isPending}
+                className="border-white/20 bg-transparent hover:bg-white/10 text-white/80 hover:text-white"
               >
                 {portalMutation.isPending && <Loader2 className="size-4 animate-spin" />}
                 <CreditCard className="size-4" /> Gestionar facturación
@@ -386,24 +375,24 @@ function SubscriptionTab() {
         </Card>
       )}
 
-      {/* Otros planes (upgrade) */}
+      {/* Otros planes */}
       {isOwner && (
         <div>
-          <p className="text-sm font-medium mb-3">Cambiar plan</p>
+          <p className="text-sm font-medium text-muted-foreground mb-3">Cambiar plan</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {(plans ?? [])
               .filter((p) => p.code !== plan?.code)
               .map((p: Plan) => (
-                <Card key={p.id} className="relative">
+                <Card key={p.id} className={glassCard}>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base">{p.name}</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-base text-white">{p.name}</CardTitle>
+                    <CardDescription className="text-white/50">
                       {formatCurrency(p.price_mxn)}/mes
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Button
-                      className="w-full"
+                      className={`w-full ${p.code === 'enterprise' ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30' : 'border-white/20 bg-white/10 hover:bg-white/20 text-white'}`}
                       size="sm"
                       variant={p.code === 'enterprise' ? 'default' : 'outline'}
                       onClick={() => checkoutMutation.mutate(p.code)}
@@ -423,17 +412,14 @@ function SubscriptionTab() {
   )
 }
 
-// ─── Página principal de configuración ───────────────────────────────────────
+// ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
   const { isOwner } = useAuth()
 
   return (
-    <div className="p-6">
-      <PageHeader
-        title="Configuración"
-        description="Gestiona usuarios, roles y tu suscripción"
-      />
+    <div className="p-6 space-y-6">
+      <PageHeader title="Configuración" description="Gestiona usuarios, roles y tu suscripción" />
 
       <Tabs defaultValue="users" className="space-y-6">
         <TabsList>
@@ -452,21 +438,9 @@ export default function SettingsPage() {
           )}
         </TabsList>
 
-        <TabsContent value="users">
-          <UsersTab />
-        </TabsContent>
-
-        {isOwner && (
-          <TabsContent value="roles">
-            <RolesTab />
-          </TabsContent>
-        )}
-
-        {isOwner && (
-          <TabsContent value="subscription">
-            <SubscriptionTab />
-          </TabsContent>
-        )}
+        <TabsContent value="users"><UsersTab /></TabsContent>
+        {isOwner && <TabsContent value="roles"><RolesTab /></TabsContent>}
+        {isOwner && <TabsContent value="subscription"><SubscriptionTab /></TabsContent>}
       </Tabs>
     </div>
   )
