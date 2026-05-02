@@ -20,7 +20,7 @@ const schema = z.object({
   ownerName:     z.string().min(2, 'Ingresa tu nombre completo'),
   ownerEmail:    z.string().email('Email inválido'),
   ownerPassword: z.string().min(8, 'Mínimo 8 caracteres'),
-  planCode:      z.enum(['basic', 'pro', 'enterprise']).default('basic'),
+  planCode:      z.enum(['basic', 'pro', 'enterprise']),
 })
 
 type FormData = z.infer<typeof schema>
@@ -32,7 +32,8 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(schema) as any,
     defaultValues: { planCode: 'basic' },
   })
 
