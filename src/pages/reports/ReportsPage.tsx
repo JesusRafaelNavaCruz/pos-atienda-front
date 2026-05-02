@@ -58,20 +58,20 @@ export default function ReportsPage() {
 
   const { data: salesData, isLoading: salesLoading } = useQuery<SalesReportData>({
     queryKey: ["report-sales", from, to],
-    queryFn: () => reportsApi.sales({ from, to }),
+    queryFn: () => reportsApi.sales({ from, to }) as Promise<SalesReportData>,
     enabled: !!from && !!to,
   })
 
   const { data: productsData, isLoading: productsLoading } = useQuery<ProductReportItem[]>({
     queryKey: ["report-products", from, to],
-    queryFn: () => reportsApi.products({ from, to, limit: 10 }),
+    queryFn: () => reportsApi.products({ from, to, limit: 10 }) as Promise<ProductReportItem[]>,
     enabled: !!from && !!to,
   })
 
   const today = format(now, "yyyy-MM-dd");
   const { data: cashCutData, isLoading: cashCutLoading } = useQuery<CashCutData>({
     queryKey: ["cash-cut", today],
-    queryFn: () => reportsApi.cashCut({ from: today, to: today }),
+    queryFn: () => reportsApi.cashCut({ from: today, to: today }) as Promise<CashCutData>,
   })
 
   const summary = salesData?.summary;
