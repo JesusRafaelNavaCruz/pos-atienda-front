@@ -255,7 +255,15 @@ export default function SuppliersPage() {
           </DialogHeader>
           {editing && (
             <SupplierForm
-              defaultValues={editing}
+              defaultValues={{
+                name:         editing.name,
+                contact_name: editing.contact_name ?? undefined,
+                phone:        editing.phone        ?? undefined,
+                email:        editing.email        ?? undefined,
+                rfc:          editing.rfc          ?? undefined,
+                address:      editing.address      ?? undefined,
+                notes:        editing.notes        ?? undefined,
+              }}
               onSubmit={(data) => updateMutation.mutate({ id: editing.id, data })}
               isLoading={updateMutation.isPending}
             />

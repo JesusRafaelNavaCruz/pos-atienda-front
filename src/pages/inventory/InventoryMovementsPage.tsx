@@ -1,68 +1,86 @@
 // src/pages/inventory/InventoryMovementsPage.tsx
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Plus, ArrowUpCircle, ArrowDownCircle, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/badge'
-import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { DataTable } from '@/components/shared/Datatable'
-import { PageHeader } from '@/components/shared/PageHeader'
-import { Can } from '@/components/layout/Guards'
-import { inventoryApi, productsApi } from '@/api'
-import { formatDateTime, cn } from '@/lib/utils'
-import type { InventoryMovement, InventoryMovementType } from '@/types'
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Plus, ArrowUpCircle, ArrowDownCircle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { DataTable } from "@/components/shared/Datatable";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Can } from "@/components/layout/Guards";
+import { inventoryApi, productsApi } from "@/api";
+import { formatDateTime, cn } from "@/lib/utils";
+import type { InventoryMovement, InventoryMovementType } from "@/types";
 
 const TYPE_LABELS: Record<InventoryMovementType, string> = {
-  sale:       'Venta',
-  purchase:   'Compra',
-  adjustment: 'Ajuste',
-  return:     'Devolución',
-  loss:       'Merma',
-  initial:    'Stock inicial',
-}
+  sale: "Venta",
+  purchase: "Compra",
+  adjustment: "Ajuste",
+  return: "Devolución",
+  loss: "Merma",
+  initial: "Stock inicial",
+};
 
 const adjustSchema = z.object({
-  product_id: z.string().uuid('Selecciona un producto'),
-  type:       z.enum(['purchase', 'adjustment', 'loss']),
-  delta:      z.coerce.number().refine((n) => n !== 0, 'La cantidad no puede ser cero'),
-  reason:     z.string().min(3, 'Describe el motivo (mínimo 3 caracteres)'),
-})
-type AdjustData = z.infer<typeof adjustSchema>
+  product_id: z.string().uuid("Selecciona un producto"),
+  type: z.enum(["purchase", "adjustment", "loss"]),
+  delta: z.number(),
+  reason: z.string().min(3, "Describe el motivo (mínimo 3 caracteres)"),
+});
+type AdjustData = z.infer<typeof adjustSchema>;
 
 function AdjustmentForm({
   onSubmit,
   isLoading,
 }: {
-  onSubmit: (data: AdjustData) => void
-  isLoading: boolean
+  onSubmit: (data: AdjustData) => void;
+  isLoading: boolean;
 }) {
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AdjustData>({
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<AdjustData>({
     resolver: zodResolver(adjustSchema),
-    defaultValues: { type: 'adjustment' },
-  })
+    defaultValues: { type: "adjustment" },
+  });
 
   const { data: products } = useQuery({
-    queryKey: ['products-for-adjust'],
+    queryKey: ["products-for-adjust"],
     queryFn: () => productsApi.list({ limit: 200, is_active: true }),
-  })
+  });
 
-  const movType = watch('type')
-  const isEntry = movType === 'purchase'
+  const movType = watch("type");
+  const isEntry = movType === "purchase";
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
         <Label>Producto *</Label>
         <select
-          {...register('product_id')}
+          {...register("product_id")}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         >
           <option value="">Seleccionar producto</option>
@@ -73,7 +91,9 @@ function AdjustmentForm({
           ))}
         </select>
         {errors.product_id && (
-          <p className="text-xs text-destructive">{errors.product_id.message}</p>
+          <p className="text-xs text-destructive">
+            {errors.product_id.message}
+          </p>
         )}
       </div>
 
@@ -82,7 +102,7 @@ function AdjustmentForm({
           <Label>Tipo de movimiento *</Label>
           <Select
             defaultValue="adjustment"
-            onValueChange={(v) => setValue('type', v as AdjustData['type'])}
+            onValueChange={(v) => setValue("type", v as AdjustData["type"])}
           >
             <SelectTrigger>
               <SelectValue />
@@ -97,16 +117,19 @@ function AdjustmentForm({
 
         <div className="space-y-2">
           <Label>
-            Cantidad *{' '}
+            Cantidad *{" "}
             <span className="text-xs text-muted-foreground">
-              ({isEntry ? 'positivo = entrada' : 'negativo = salida'})
+              ({isEntry ? "positivo = entrada" : "negativo = salida"})
             </span>
           </Label>
           <Input
-            {...register('delta')}
+            {...register('delta', {
+              valueAsNumber: true,
+              validate: (v) => v !== 0 || 'La cantidad no puede ser cero',
+            })}
             type="number"
             step="0.001"
-            placeholder={isEntry ? '+10' : '-5'}
+            placeholder={isEntry ? "+10" : "-5"}
           />
           {errors.delta && (
             <p className="text-xs text-destructive">{errors.delta.message}</p>
@@ -117,7 +140,7 @@ function AdjustmentForm({
       <div className="space-y-2">
         <Label>Motivo *</Label>
         <Textarea
-          {...register('reason')}
+          {...register("reason")}
           placeholder="Ej: Conteo físico, producto caducado, recepción de pedido..."
           rows={2}
         />
@@ -133,108 +156,122 @@ function AdjustmentForm({
         </Button>
       </DialogFooter>
     </form>
-  )
+  );
 }
 
 export default function InventoryMovementsPage() {
-  const qc = useQueryClient()
-  const [page, setPage]       = useState(1)
-  const [open, setOpen]       = useState(false)
-  const [typeFilter, setTypeFilter] = useState<string>('')
+  const qc = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [open, setOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<string>("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ['inventory-movements', { page, typeFilter }],
+    queryKey: ["inventory-movements", { page, typeFilter }],
     queryFn: () =>
       inventoryApi.movements({
         page,
         limit: 30,
         type: typeFilter || undefined,
       }),
-  })
+  });
 
   const adjustMutation = useMutation({
     mutationFn: inventoryApi.adjust,
     onSuccess: () => {
-      toast.success('Movimiento registrado')
-      qc.invalidateQueries({ queryKey: ['inventory-movements'] })
-      qc.invalidateQueries({ queryKey: ['products'] })
-      setOpen(false)
+      toast.success("Movimiento registrado");
+      qc.invalidateQueries({ queryKey: ["inventory-movements"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      setOpen(false);
     },
     onError: (err: unknown) => {
       const msg =
         (err as { response?: { data?: { error?: { message?: string } } } })
-          ?.response?.data?.error?.message ?? 'Error al registrar movimiento'
-      toast.error(msg)
+          ?.response?.data?.error?.message ?? "Error al registrar movimiento";
+      toast.error(msg);
     },
-  })
+  });
 
   const columns = [
     {
-      key: 'date',
-      header: 'Fecha',
+      key: "date",
+      header: "Fecha",
       cell: (row: InventoryMovement) => (
-        <span className="text-sm whitespace-nowrap">{formatDateTime(row.created_at)}</span>
+        <span className="text-sm whitespace-nowrap">
+          {formatDateTime(row.created_at)}
+        </span>
       ),
     },
     {
-      key: 'product',
-      header: 'Producto',
+      key: "product",
+      header: "Producto",
       cell: (row: InventoryMovement) => (
         <div>
-          <p className="text-sm font-medium">{row.product?.name ?? '—'}</p>
+          <p className="text-sm font-medium">{row.product?.name ?? "—"}</p>
           {row.product?.barcode && (
-            <p className="text-xs font-mono text-muted-foreground">{row.product.barcode}</p>
+            <p className="text-xs font-mono text-muted-foreground">
+              {row.product.barcode}
+            </p>
           )}
         </div>
       ),
     },
     {
-      key: 'type',
-      header: 'Tipo',
+      key: "type",
+      header: "Tipo",
       cell: (row: InventoryMovement) => (
         <Badge variant="secondary">{TYPE_LABELS[row.type] ?? row.type}</Badge>
       ),
     },
     {
-      key: 'delta',
-      header: 'Cantidad',
+      key: "delta",
+      header: "Cantidad",
       cell: (row: InventoryMovement) => (
-        <div className={cn(
-          'flex items-center gap-1.5 font-mono font-semibold text-sm',
-          row.delta > 0 ? 'text-green-600' : 'text-red-600',
-        )}>
-          {row.delta > 0
-            ? <ArrowUpCircle className="size-4" />
-            : <ArrowDownCircle className="size-4" />
-          }
-          {row.delta > 0 ? '+' : ''}{row.delta} {row.product?.unit}
+        <div
+          className={cn(
+            "flex items-center gap-1.5 font-mono font-semibold text-sm",
+            row.delta > 0 ? "text-green-600" : "text-red-600",
+          )}
+        >
+          {row.delta > 0 ? (
+            <ArrowUpCircle className="size-4" />
+          ) : (
+            <ArrowDownCircle className="size-4" />
+          )}
+          {row.delta > 0 ? "+" : ""}
+          {row.delta} {row.product?.unit}
         </div>
       ),
-      className: 'text-right',
+      className: "text-right",
     },
     {
-      key: 'stock',
-      header: 'Stock resultante',
+      key: "stock",
+      header: "Stock resultante",
       cell: (row: InventoryMovement) => (
-        <span className="font-mono text-sm">{row.quantity_after} {row.product?.unit}</span>
+        <span className="font-mono text-sm">
+          {row.quantity_after} {row.product?.unit}
+        </span>
       ),
-      className: 'text-right',
+      className: "text-right",
     },
     {
-      key: 'user',
-      header: 'Usuario',
+      key: "user",
+      header: "Usuario",
       cell: (row: InventoryMovement) => (
-        <span className="text-sm text-muted-foreground">{row.user?.full_name ?? '—'}</span>
+        <span className="text-sm text-muted-foreground">
+          {row.user?.full_name ?? "—"}
+        </span>
       ),
     },
     {
-      key: 'reason',
-      header: 'Motivo',
+      key: "reason",
+      header: "Motivo",
       cell: (row: InventoryMovement) => (
-        <span className="text-xs text-muted-foreground line-clamp-1">{row.reason ?? '—'}</span>
+        <span className="text-xs text-muted-foreground line-clamp-1">
+          {row.reason ?? "—"}
+        </span>
       ),
     },
-  ]
+  ];
 
   return (
     <div className="p-6">
@@ -251,7 +288,13 @@ export default function InventoryMovementsPage() {
 
       {/* Filtro por tipo */}
       <div className="flex items-center gap-3 mb-6">
-        <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1) }}>
+        <Select
+          value={typeFilter}
+          onValueChange={(v) => {
+            setTypeFilter(v);
+            setPage(1);
+          }}
+        >
           <SelectTrigger className="w-52">
             <SelectValue placeholder="Todos los tipos" />
           </SelectTrigger>
@@ -288,5 +331,5 @@ export default function InventoryMovementsPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
