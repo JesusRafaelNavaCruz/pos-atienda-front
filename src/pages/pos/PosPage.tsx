@@ -6,8 +6,8 @@
 //   - Cobro en efectivo y tarjeta
 //   - Impresión de ticket
 
-import { useState, useRef, useCallback, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useRef, useCallback } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
   Scale,
@@ -228,6 +228,14 @@ export default function PosPage() {
   const [results, setResults] = useState<Product[]>([]);
   const [searching, setSearching] = useState(false);
 
+  const { data: defaultProducts, isLoading: loadingProducts } = useQuery<
+    Awaited<ReturnType<typeof productsApi.list>>
+  >({
+    queryKey: ["pos-products"],
+    queryFn: () => productsApi.list({ limit: 40, is_active: true }),
+    staleTime: 1000 * 60 * 5,
+  });
+
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSearch = useCallback(async (value: string) => {
@@ -326,21 +334,10 @@ export default function PosPage() {
   });
 
   const isEmpty = cart.items.length === 0;
-
-  const getProducts = async () => {
-    if (results.length === 0) {
-      try {
-        const { data } = await productsApi.list();
-        setResults(data);
-      } finally {
-        setSearching(false)
-      }
-    }
-  }
-
-  useEffect(() => {
-    getProducts()
-  }, [results])
+  const noSearch = !search.trim();
+  const displayedProducts = noSearch
+    ? defaultProducts?.data ?? []
+    : results;
 
   return (
     <div className="h-full flex flex-col bg-slate-50 pos-no-select">
@@ -390,20 +387,30 @@ export default function PosPage() {
               Buscando...
             </div>
           )}
-          {!searching && results.length === 0 && search && (
+
+          {!searching && !noSearch && displayedProducts.length === 0 && (
             <div className="flex items-center justify-center p-8 text-muted-foreground">
               Sin resultados para "{search}"
             </div>
           )}
-          {!searching && results.length === 0 && !search && (
-            <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
-              <Search className="size-16 opacity-20 mb-2" />
-              <p>Busca o escanea un producto para comenzar</p>
+
+          {!searching && noSearch && loadingProducts && (
+            <div className="flex items-center justify-center p-8 text-muted-foreground">
+              <Loader2 className="animate-spin mr-2" />
+              Cargando productos disponibles...
             </div>
           )}
-          {results.length > 0 && (
+
+          {!searching && noSearch && !loadingProducts && displayedProducts.length === 0 && (
+            <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+              <Search className="size-16 opacity-20 mb-2" />
+              <p>No hay productos disponibles aún</p>
+            </div>
+          )}
+
+          {displayedProducts.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto pb-4">
-              {results.map((product) => (
+              {displayedProducts.map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}

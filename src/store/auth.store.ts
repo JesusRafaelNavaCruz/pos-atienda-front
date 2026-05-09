@@ -60,8 +60,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       hasFeature: (key) => {
-        const { user, features } = get()
-        if (user?.role === 'owner') return true
+        const { features } = get()
         const value = features[key]
         return value !== undefined && value !== 'false' && value !== '0'
       },

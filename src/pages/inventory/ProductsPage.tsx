@@ -11,6 +11,8 @@ import { productsApi } from '@/api'
 import { formatCurrency, cn } from '@/lib/utils'
 import { DataTable } from '@/components/shared/Datatable'
 import type { Product } from '@/types'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import ProductForm from '@/components/forms/ProductForm'
 
 const UNIT_LABELS: Record<string, string> = {
   pza: 'pieza', kg: 'kg', g: 'g', lt: 'litro',
@@ -38,6 +40,7 @@ export default function ProductsPage() {
   const [page, setPage]       = useState(1)
   const [lowStock, setLowStock] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [open, setOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', { search, page, lowStock }],
@@ -54,6 +57,12 @@ export default function ProductsPage() {
       qc.invalidateQueries({ queryKey: ['products'] })
     },
     onError: () => toast.error('Error al importar CSV'),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: productsApi.create,
+    onSuccess: () => { toast.success("Producto creado"); qc.invalidateQueries({queryKey: ["products"]}); setOpen(false) },
+    onError: () => toast.error('Error al crear cliente'),
   })
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,7 +170,7 @@ export default function ProductsPage() {
             <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
           </Feature>
           <Can resource="products" action="create">
-            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-500 text-white gap-2">
+            <Button onClick={() => setOpen(true)} size="sm" className="bg-indigo-600 hover:bg-indigo-500 text-white gap-2">
               <Plus className="size-4" />
               Nuevo producto
             </Button>
@@ -208,6 +217,20 @@ export default function ProductsPage() {
         onPageChange={setPage}
         emptyMessage="No hay productos que mostrar"
       />
+
+      {/* Dialog Create Product */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="backdrop-blur-xl bg-slate-900 border-white/10 text-white">
+            <DialogHeader>
+              <DialogTitle>Nuevo producto</DialogTitle>
+            </DialogHeader>
+            <ProductForm onSubmit={(data) => {
+              console.log("data", data)
+              createMutation.mutate(data)
+            }} isLoading={createMutation.isPending} />
+        </DialogContent>        
+      </Dialog>
+
     </div>
   )
 }
