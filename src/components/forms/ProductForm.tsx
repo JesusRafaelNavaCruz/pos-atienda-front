@@ -26,7 +26,9 @@ const productSchema = z.object({
     image_url:      z.string().url("La URL de la imagen no es válida").optional().or(z.literal("")).nullable(),
 })
 type FormData = z.infer<typeof productSchema>;
-const inputClass = 'bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:ring-indigo-500'
+const inputClass = 'w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 outline-none transition-all duration-200 placeholder:text-gray-300 placeholder:font-normal hover:border-gray-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-50'
+const selectTriggerClass = "flex w-full items-center justify-between px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 outline-none transition-all duration-200 hover:border-gray-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-50 text-left";
+const selectItemClass = "relative flex w-full cursor-pointer select-none items-center rounded-lg py-2 px-3 text-sm font-medium text-gray-700 outline-none transition-colors hover:bg-gray-50 focus:bg-gray-50 data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-600 data-[state=checked]:font-semibold";
 
 export default function ProductForm({
   defaultValues,
@@ -55,64 +57,64 @@ export default function ProductForm({
         <div className="grid grid-cols-2 gap-4">
 
             <div className="col-span-2 space-y-2">
-                <Label className="text-white/80">Nombre</Label>
+                <Label className="text-xs font-medium text-gray-600 block mb-1.5">Nombre</Label>
                 <Input className={inputClass} {...register("name")}  placeholder="Coca-Cola 600ml" />
                 {errors.name && <p className="text-xs text-red-400">{errors.name.message}</p>}
             </div>
             <div className="col-span-2 space-y-2">
-                <Label className="text-white/80">Descripción</Label>
+                <Label className="text-xs font-medium text-gray-600 block mb-1.5">Descripción</Label>
                 <Textarea className={inputClass} {...register("description")}  placeholder="Refresco sabor cola 600ml no-retornable" />
                 {errors.description && <p className="text-xs text-red-400">{errors.description.message}</p>}
             </div>
             <div className="space-y-2">
-                <Label className="text-white/80">SKU</Label>
+                <Label className="text-xs font-medium text-gray-600 block mb-1.5">SKU</Label>
                 <Input className={inputClass} {...register("sku")}  placeholder="COCA-600" />
                 {errors.sku && <p className="text-xs text-red-400">{errors.sku.message}</p>}
             </div>
             <div className="space-y-2">
-                <Label className="text-white/80">Código de barras</Label>
+                <Label className="text-xs font-medium text-gray-600 block mb-1.5">Código de barras</Label>
                 <Input className={inputClass} {...register("barcode")}  placeholder="7501031311309" />
                 {errors.barcode && <p className="text-xs text-red-400">{errors.barcode.message}</p>}
             </div>
             <div className="space-y-2">
-                <Label className="text-white/80">Cantidad disponible</Label>
+                <Label className="text-xs font-medium text-gray-600 block mb-1.5">Cantidad disponible</Label>
                 <Input type="number" className={inputClass} {...register("stock", { valueAsNumber: true, validate: (v) => v !== 0 || 'La cantidad no puede ser cero', })}  placeholder="48" />
                 {errors.stock && <p className="text-xs text-red-400">{errors.stock.message}</p>}
             </div>
             <div className="space-y-2">
-                <Label className="text-white/80">Stock mínimo</Label>
+                <Label className="text-xs font-medium text-gray-600 block mb-1.5">Stock mínimo</Label>
                 <Input type="number" className={inputClass} {...register("min_stock", { valueAsNumber: true })} placeholder="5" />
                 {errors.min_stock && <p className="text-xs text-red-400">{errors.min_stock.message}</p>}
             </div>
             <div className="space-y-2">
-                <Label className="text-white/80">Costo</Label>
+                <Label className="text-xs font-medium text-gray-600 block mb-1.5">Costo</Label>
                 <Input type="number" className={inputClass} {...register("cost", { valueAsNumber: true, validate: (v) => v !== 0 || 'La cantidad no puede ser cero' })}  placeholder="15" />
                 {errors.cost && <p className="text-xs text-red-400">{errors.cost.message}</p>}
             </div>
             <div className="space-y-2">
-                <Label className="text-white/80">Precio al público</Label>
+                <Label className="text-xs font-medium text-gray-600 block mb-1.5">Precio al público</Label>
                 <Input type="number" className={inputClass} {...register("price", { valueAsNumber: true, validate: (v) => v !== 0 || 'La cantidad no puede ser cero', })}  placeholder="22.50" />
                 {errors.price && <p className="text-xs text-red-400">{errors.price.message}</p>}
             </div>
             <div className="space-y-2">
-                <Label className="text-white/80">Unidad</Label>
+                <Label className="text-xs font-medium text-gray-600 block mb-1.5">Unidad</Label>
                 <Select  defaultValue="pza" onValueChange={(v) => setValue("unit", v as FormData["unit"])} {...register("unit")}>
-                    <SelectTrigger className={inputClass}>
+                    <SelectTrigger className={selectTriggerClass}>
                         <SelectValue/>
                     </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem className={inputClass} value="pza">Pieza</SelectItem>
-                        <SelectItem className={inputClass} value="kg">Kilo</SelectItem>
-                        <SelectItem className={inputClass} value="lt">Litro</SelectItem>
-                        <SelectItem className={inputClass} value="ml">Mililitro</SelectItem>
-                        <SelectItem className={inputClass} value="caja">Caja</SelectItem>
-                        <SelectItem className={inputClass} value="paq">Paquete</SelectItem>
+                    <SelectContent className="bg-white rounded-xl border border-gray-100 shadow-xl p-1.5 min-w-[8rem]">
+                        <SelectItem className={selectItemClass} value="pza">Pieza</SelectItem>
+                        <SelectItem className={selectItemClass} value="kg">Kilo</SelectItem>
+                        <SelectItem className={selectItemClass} value="lt">Litro</SelectItem>
+                        <SelectItem className={selectItemClass} value="ml">Mililitro</SelectItem>
+                        <SelectItem className={selectItemClass} value="caja">Caja</SelectItem>
+                        <SelectItem className={selectItemClass} value="paq">Paquete</SelectItem>
                     </SelectContent>
                 </Select>
                 {errors.unit && <p className="text-xs text-red-400">{errors.unit.message}</p>}
             </div>
             <div className="space-y-2">
-                <Label className="text-white/80">Vender por cantidad?</Label>
+                <Label className="text-xs font-medium text-gray-600 block mb-1.5">Vender por cantidad?</Label>
                 <Switch
                     checked={soldByWeight}
                     onCheckedChange={(v) => setValue("sold_by_weight", v)}
@@ -123,7 +125,7 @@ export default function ProductForm({
 
         </div>
         <DialogFooter>
-            <Button type="submit" disabled={isLoading} className="bg-indigo-600 hover:bg-indigo-500 text-white">
+            <Button type="submit" disabled={isLoading} className="px-8 py-2.5 bg-blue-600 text-sm font-bold text-white rounded-xl transition-all shadow-md shadow-blue-600/10 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/20 active:scale-[0.98]">
                 {isLoading && <Loader2 className="size-4 animate-spin" />}
                 Guardar
             </Button>
