@@ -61,6 +61,11 @@ export default function App() {
                 path="inventory/movements"
                 element={<InventoryMovementsPage />}
               />
+            </Route >
+
+            {/* Barcodes */}
+            <Route element={<PermissionGuard resource="barcodes" action="read" />}>
+              <Route path="barcodes" />
             </Route>
 
             {/* Ventas */}

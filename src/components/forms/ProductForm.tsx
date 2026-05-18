@@ -9,6 +9,7 @@ import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
+import BarcodeGenerator from "../shared/BarcodeGenerator";
 
 const productSchema = z.object({
     barcode:        z.string().trim().min(1, "El código es requerido").max(100),
@@ -34,10 +35,12 @@ export default function ProductForm({
   defaultValues,
   onSubmit,
   isLoading,
+  tenantId = "T1"
 }: {
   defaultValues?: Partial<FormData>;
   onSubmit: (data: FormData) => void;
   isLoading: boolean;
+  tenantId?: string,
 }) {
   const {
     register,
@@ -50,6 +53,8 @@ export default function ProductForm({
     defaultValues: { sold_by_weight: false, ...defaultValues },
   });
 
+  const sku = useWatch({ control, name: "sku" }) ?? "";
+  const barcode = useWatch({ control, name: "barcode" }) ?? "";
   const soldByWeight = useWatch({ control, name: "sold_by_weight" }) ?? false;
 
   return (
@@ -73,7 +78,19 @@ export default function ProductForm({
             </div>
             <div className="space-y-2">
                 <Label className="text-xs font-medium text-gray-600 block mb-1.5">Código de barras</Label>
-                <Input className={inputClass} {...register("barcode")}  placeholder="7501031311309" />
+                
+                <div className="flex gap-2">
+                    <Input className={inputClass} {...register("barcode")} placeholder="7501031311309" />
+                    <BarcodeGenerator 
+                      tenantId={tenantId}
+                      sku={sku}
+                      existingBarcode={barcode}
+                      onGenerated={(nuevoCodigo) => {
+                        // Cambiamos el valor nativamente en el formulario y disparamos la validación de Zod
+                        setValue("barcode", nuevoCodigo, { shouldValidate: true });
+                      }} 
+                    />
+                </div>
                 {errors.barcode && <p className="text-xs text-red-400">{errors.barcode.message}</p>}
             </div>
             <div className="space-y-2">
@@ -102,7 +119,7 @@ export default function ProductForm({
                     <SelectTrigger className={selectTriggerClass}>
                         <SelectValue/>
                     </SelectTrigger>
-                    <SelectContent className="bg-white rounded-xl border border-gray-100 shadow-xl p-1.5 min-w-[8rem]">
+                    <SelectContent className="bg-white rounded-xl border border-gray-100 shadow-xl p-1.5 min-w-32">
                         <SelectItem className={selectItemClass} value="pza">Pieza</SelectItem>
                         <SelectItem className={selectItemClass} value="kg">Kilo</SelectItem>
                         <SelectItem className={selectItemClass} value="lt">Litro</SelectItem>
