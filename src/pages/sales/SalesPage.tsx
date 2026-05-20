@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DataTable } from '@/components/shared/Datatable'
-import { PageHeader } from '@/components/shared/PageHeader'
 import { Can } from '@/components/layout/Guards'
 import { salesApi } from '@/api'
 import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
@@ -118,7 +117,15 @@ export default function SalesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <PageHeader title="Ventas" description="Historial de todas las transacciones" />
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className='text-3xl font-bold text-slate-900'>Ventas</h1>
+          <p className='text-sm text-slate-600 mt-1'>
+            Historial de todas las transacciones
+          </p>
+        </div>
+      </div>
 
       {/* Filtros */}
       <div className="backdrop-blur-xl bg-white/80 border border-white/50 rounded-xl p-4 shadow-lg">

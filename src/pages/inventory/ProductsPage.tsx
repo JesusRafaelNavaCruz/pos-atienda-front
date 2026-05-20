@@ -158,7 +158,7 @@ export default function ProductsPage() {
       key: 'actions',
       header: 'Acciones',
       cell: (row: Product) => (
-        <div className='flex items-center gap-1'>
+        <div className='flex items-center gap-1' onClick={(e) => e.stopPropagation()}>
           <Can resource='product' action='update'>
             <Button variant="ghost" size="sm" className='text-blue-600 hover:text-blue-900 hover:bg-blue-100' onClick={() => setEditing(row)}>
               <Pencil />
@@ -212,7 +212,7 @@ export default function ProductsPage() {
 
       {/* Filtros */}
       <div className="backdrop-blur-xl bg-white/80 border border-white/50 rounded-xl p-4 shadow-lg">
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 items flex-wrap">
           <div className="relative flex-1 min-w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
             <Input
@@ -320,9 +320,7 @@ export default function ProductsPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-
-
+      
     </div>
   )
 }

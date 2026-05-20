@@ -1,91 +1,18 @@
 // src/pages/customers/CustomersPage.tsx
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Plus, Search, Star, Phone, Mail, Loader2 } from 'lucide-react'
+import { Plus, Search, Star, Phone, Mail, Pencil, Trash } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { DataTable } from '@/components/shared/Datatable'
-import { PageHeader } from '@/components/shared/PageHeader'
 import { Can } from '@/components/layout/Guards'
 import { customersApi } from '@/api'
 import { formatCurrency } from '@/lib/utils'
 import type { Customer } from '@/types'
+import CustomerForm from '@/components/forms/CustomerForm'
 
-const glassCard  = 'backdrop-blur-xl bg-white/80 border border-slate-200/60 shadow-lg'
-const inputClass = 'bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:ring-indigo-500'
-
-const customerSchema = z.object({
-  name:         z.string().min(1, 'Nombre requerido'),
-  phone:        z.string().optional(),
-  email:        z.string().email('Email inválido').optional().or(z.literal('')),
-  rfc:          z.string().max(13).optional(),
-  address:      z.string().optional(),
-  credit_limit: z.number().min(0),
-  notes:        z.string().optional(),
-})
-type FormData = z.infer<typeof customerSchema>
-
-function CustomerForm({
-  defaultValues, onSubmit, isLoading,
-}: {
-  defaultValues?: Partial<FormData>
-  onSubmit: (data: FormData) => void
-  isLoading: boolean
-}) {
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(customerSchema),
-    defaultValues: { credit_limit: 0, ...defaultValues },
-  })
-
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2 space-y-2">
-          <Label className="text-white/80">Nombre *</Label>
-          <Input className={inputClass} {...register('name')} placeholder="Nombre completo" />
-          {errors.name && <p className="text-xs text-red-400">{errors.name.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label className="text-white/80">Teléfono</Label>
-          <Input className={inputClass} {...register('phone')} placeholder="55 1234 5678" />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-white/80">Correo</Label>
-          <Input className={inputClass} {...register('email')} type="email" placeholder="cliente@email.com" />
-          {errors.email && <p className="text-xs text-red-400">{errors.email.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label className="text-white/80">RFC</Label>
-          <Input className={inputClass} {...register('rfc')} placeholder="XAXX010101000" />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-white/80">Límite de crédito</Label>
-          <Input className={inputClass} {...register('credit_limit', { valueAsNumber: true })} type="number" min={0} step={0.01} />
-        </div>
-        <div className="col-span-2 space-y-2">
-          <Label className="text-white/80">Dirección</Label>
-          <Input className={inputClass} {...register('address')} placeholder="Calle, colonia, ciudad" />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button
-          type="submit" disabled={isLoading}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white"
-        >
-          {isLoading && <Loader2 className="size-4 animate-spin" />}
-          Guardar
-        </Button>
-      </DialogFooter>
-    </form>
-  )
-}
 
 export default function CustomersPage() {
   const qc = useQueryClient()
@@ -93,6 +20,7 @@ export default function CustomersPage() {
   const [search, setSearch]   = useState('')
   const [open, setOpen]       = useState(false)
   const [editing, setEditing] = useState<Customer | null>(null)
+  const [isDelete, setIsDelete] = useState<Customer | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['customers', { page, search }],
@@ -112,7 +40,7 @@ export default function CustomersPage() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: customersApi.delete,
+    mutationFn: ({id}: {id: string}) => customersApi.delete(id),
     onSuccess: () => { toast.success('Cliente desactivado'); qc.invalidateQueries({ queryKey: ['customers'] }) },
     onError: () => toast.error('Error al desactivar cliente'),
   })
@@ -176,25 +104,17 @@ export default function CustomersPage() {
       className: 'text-center',
     },
     {
-      key: 'actions', header: '',
+      key: 'actions', header: 'Acciones',
       cell: (row: Customer) => (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <Can resource="customers" action="update">
-            <Button
-              variant="ghost" size="sm"
-              className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              onClick={() => setEditing(row)}
-            >
-              Editar
+            <Button variant="ghost" size="sm" className='text-blue-600 hover:text-blue-900 hover:bg-blue-100' onClick={() => setEditing(row)}>
+              <Pencil />
             </Button>
           </Can>
           <Can resource="customers" action="delete">
-            <Button
-              variant="ghost" size="sm"
-              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-              onClick={() => { if (confirm('¿Desactivar este cliente?')) deleteMutation.mutate(row.id) }}
-            >
-              Desactivar
+            <Button variant="ghost" size="sm" className='text-red-600 hover:text-red-900 hover:bg-red-100' onClick={() => setIsDelete(row)}>
+              <Trash />
             </Button>
           </Can>
         </div>
@@ -204,47 +124,57 @@ export default function CustomersPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <PageHeader title="Clientes" description={`${data?.meta.total ?? 0} clientes registrados`}>
-        <Can resource="customers" action="create">
-          <Button
-            onClick={() => setOpen(true)}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30"
-          >
-            <Plus className="size-4" /> Nuevo cliente
-          </Button>
-        </Can>
-      </PageHeader>
 
-      <Card className={glassCard}>
-        <CardContent className="p-4 space-y-4">
-          {/* Buscador */}
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-white/40" />
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Clientes</h1>
+          <p className="text-sm text-slate-600 mt-1">
+            {data?.meta.total ?? 0} clientes registrados
+          </p>
+        </div>
+        <div className='flex gap-2'>
+          <Can resource="customers" action="create">
+            <Button
+              onClick={() => setOpen(true)}
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white gap-2"
+            >
+              <Plus className="size-4" /> Nuevo cliente
+            </Button>
+          </Can>
+        </div>
+      </div>
+
+      <div className="backdrop-blur-xl bg-white/80 border border-white/50 rounded-xl p-4 shadow-lg">
+        <div className="flex gap-3 items-center flex-wrap">
+          <div className="relative flex-1 min-w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400"/>
             <Input
-              placeholder="Buscar por nombre, teléfono o RFC..."
+              placeholder="Buscar por nombre o código..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              className={`pl-9 ${inputClass}`}
+              onChange={(e) => {setSearch(e.target.value); setPage(1)} }
+              className="pl-9 bg-slate-50 border-slate-200 focus:bg-white"
             />
           </div>
+        </div>
+      </div>
 
-          <DataTable
-            columns={columns}
-            data={data?.data}
-            meta={data?.meta}
-            isLoading={isLoading}
-            page={page}
-            onPageChange={setPage}
-            emptyMessage="No hay clientes registrados"
-          />
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={data?.data}
+        meta={data?.meta}
+        isLoading={isLoading}
+        page={page}
+        onPageChange={setPage}
+        emptyMessage="No hay clientes registrados"
+      />
 
-      {/* Modal crear */}
+      {/* Dialog Create Customer */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="backdrop-blur-xl bg-slate-900 border-white/10 text-white">
+        <DialogContent className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 max-w-xl w-full space-y-4">
           <DialogHeader>
-            <DialogTitle className="text-white">Nuevo cliente</DialogTitle>
+            <DialogTitle className='text-xl font-bold text-gray-900 tracking-tight'>Nuevo cliente</DialogTitle>
           </DialogHeader>
           <CustomerForm
             onSubmit={(data) => createMutation.mutate(data)}
@@ -253,11 +183,11 @@ export default function CustomersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal editar */}
+      {/* Dialog Update Customer */}
       <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null) }}>
-        <DialogContent className="backdrop-blur-xl bg-slate-900 border-white/10 text-white">
+        <DialogContent className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 max-w-xl w-full space-y-4">
           <DialogHeader>
-            <DialogTitle className="text-white">Editar cliente</DialogTitle>
+            <DialogTitle className='text-xl font-bold text-gray-900 tracking-tight'>Editar cliente</DialogTitle>
           </DialogHeader>
           {editing && (
             <CustomerForm
@@ -274,6 +204,37 @@ export default function CustomersPage() {
               isLoading={updateMutation.isPending}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Delete Customer */}
+      <Dialog open={!!isDelete} onOpenChange={(o) => { if (!o) setIsDelete(null) } }>
+        <DialogContent className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 max-w-md w-full space-y-6">
+          <DialogHeader>
+            <DialogTitle>
+              ¿Eliminar este producto?
+            </DialogTitle>
+            <DialogDescription className="text-sm font-normal text-gray-500 leading-relaxed">
+              Esta acción no se puede deshacer. El producto se borrará permanentemente del inventario.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 w-full">
+            <button
+              type="button"
+              className="flex-1 py-3 px-4 bg-white border border-gray-200 text-sm font-bold text-gray-700 rounded-xl transition-all hover:bg-gray-50 active:bg-gray-100 outline-none"    
+              onClick={() => setIsDelete(null)}
+            >
+              No, cancelar
+            </button>
+            
+            <button
+              type="button"
+              className="flex-1 py-3 px-4 bg-blue-600 text-sm font-bold text-white rounded-xl transition-all shadow-md shadow-blue-600/10 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/20 active:scale-[0.98] outline-none"
+              onClick={() => {if (isDelete) deleteMutation.mutate({id: isDelete.id })}}
+            >
+              Sí, eliminar
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
