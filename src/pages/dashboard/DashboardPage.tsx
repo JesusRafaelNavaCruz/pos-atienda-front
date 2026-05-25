@@ -15,18 +15,20 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label, Skeleton } from "@/components/ui/badge";
 import KpiCard from "@/components/ui/KpiCard";
 import { reportsApi } from "@/api";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatGrowth } from "@/lib/utils";
+import { NavLink } from "react-router-dom";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useState } from "react";
 
 const PAYMENT_COLORS: Record<string, string> = {
   cash: "#22c55e",
@@ -41,132 +43,213 @@ const PAYMENT_LABELS: Record<string, string> = {
   credit: "Crédito",
 };
 
+const selectTriggerClass = `
+flex h-11 min-w-[140px] items-center justify-between
+rounded-xl border border-slate-300 bg-white
+px-4 text-sm font-semibold text-slate-900
+shadow-sm
+transition-all duration-200
+hover:border-slate-400 hover:bg-slate-50
+focus:border-blue-500 focus:ring-4 focus:ring-blue-100
+data-[placeholder]:text-slate-500
+`;
+const selectItemClass = `
+relative flex w-full cursor-pointer select-none
+items-center rounded-lg px-3 py-2
+text-sm font-medium text-slate-700
+outline-none transition-colors
+
+hover:bg-slate-100
+focus:bg-slate-100
+
+data-[state=checked]:bg-blue-50
+data-[state=checked]:text-blue-700
+data-[state=checked]:font-semibold
+`;
+
 export default function DashboardPage() {
+  const [period, setPeriod] = useState("month");
+
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: reportsApi.dashboard,
+    queryKey: ["dashboard", period],
+    queryFn: () => reportsApi.dashboard({ period: period }),
     refetchInterval: 60_000, // refrescar cada minuto
   });
 
-  const glassCard =
-    "backdrop-blur-xl bg-slate-800/75 border border-white/10 shadow-2xl text-white";
-  const tickStyle = { fill: "rgba(255,255,255,0.55)", fontSize: 12 } as const;
+  const tickStyle = {
+    fill: "#64748b",
+    fontSize: 12,
+  };
   const tooltipStyle = {
     contentStyle: {
-      background: "rgba(15,23,42,0.95)",
-      border: "1px solid rgba(255,255,255,0.1)",
-      borderRadius: "10px",
-      color: "#fff",
+      background: "#fff",
+      border: "1px solid #e2e8f0",
+      borderRadius: "12px",
+      color: "#0f172a",
+      boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
     },
-    cursor: { fill: "rgba(255,255,255,0.05)" },
+    cursor: { fill: "rgba(148,163,184,0.08)" },
   };
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground text-sm">
-          Resumen de tus operaciones
-        </p>
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Resumen de tus operaciones
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label className="mb-1.5 block text-sm font-semibold text-slate-700 text-right">
+            Periodo
+          </Label>
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className={selectTriggerClass}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white rounded-xl border border-gray-100 shadow-sm p-1.5 min-w-32">
+              <SelectItem className={selectItemClass} value="today">
+                Hoy
+              </SelectItem>
+              <SelectItem className={selectItemClass} value="week">
+                Semana
+              </SelectItem>
+              <SelectItem className={selectItemClass} value="month">
+                Mes
+              </SelectItem>
+              <SelectItem className={selectItemClass} value="year">
+                Año
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
+      {/* Alertas de stock bajo */}
+      {(data?.alerts.lowStockCount ?? 0) > 0 && (
+        <Card className="border-0 bg-gradient-to-br from-yellow-500 to-amber-500 text-white shadow-sm">
+          <CardContent className="flex items-start justify-between p-6">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-yellow-100">
+                Productos con stock bajo
+              </p>
+
+              <div className="space-y-1">
+                <h2 className="text-4xl font-bold tracking-tight">
+                  {data?.lowStockCount}
+                </h2>
+
+                <p className="text-sm text-yellow-100/90">
+                  Requieren reposición
+                </p>
+              </div>
+
+              <NavLink
+                to="/app/inventory"
+                className="
+                  mt-3 inline-flex h-9 items-center justify-center
+                  rounded-md
+                  bg-white/15
+                  px-4
+                  text-sm font-medium text-white
+                  backdrop-blur-sm
+                  transition-all
+                  hover:bg-white/25
+                  hover:scale-[1.02]
+                  active:scale-[0.98]
+                "
+              >
+                Ver productos
+              </NavLink>
+            </div>
+
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-white/20">
+              <AlertTriangle className="size-7 text-white" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* KPIs */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <KpiCard
-          title="Ventas del día"
-          value={data ? formatCurrency(data.today.amount) : "—"}
-          subtitle={`${data?.today.sales ?? 0} transacciones`}
+          title="Ventas por periodo"
+          value={data ? formatCurrency(data.sales.revenue) : "—"}
+          subtitle={`${data?.sales.count ?? 0} transacciones`}
           icon={DollarSign}
-          trend={data?.today.growthVsYesterday ?? null}
+          trend={data?.sales.growthVsPrevious ?? null}
           loading={isLoading}
           color="green"
         />
         <KpiCard
-          title="Ventas del mes"
-          value={data ? formatCurrency(data.month.amount) : "—"}
-          subtitle={`${data?.month.sales ?? 0} transacciones`}
+          title="Ganancias"
+          value={data ? formatCurrency(data.profit.gross) : "—"}
+          subtitle={`${formatGrowth(data?.profit?.margin ?? null)}`}
           icon={TrendingUp}
-          trend={data?.month.growthVsLastMonth ?? null}
+          trend={data?.profit.growthVsPrevious ?? null}
           loading={isLoading}
           color="blue"
         />
         <KpiCard
-          title="Descuentos del mes"
-          value={data ? formatCurrency(data.month.discount) : "—"}
+          title="Ticket promedio"
+          value={data ? formatCurrency(data.avgTicket.value) : "—"}
+          trend={data?.avgTicket.growthVsPrevious ?? null}
           icon={ShoppingCart}
           loading={isLoading}
           color="purple"
         />
-        <KpiCard
-          title="Productos con stock bajo"
-          value={String(data?.lowStockCount ?? 0)}
-          subtitle="Requieren reposición"
-          icon={AlertTriangle}
-          loading={isLoading}
-          color="yellow"
-        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Métodos de pago hoy */}
-        <Card className={glassCard}>
-          <CardHeader>
-            <CardTitle className="text-base text-white">
-              Pagos de hoy por método
+        {/* Transacciones recientes */}
+        <Card className="border-0 bg-white shadow-2xl rounded-2xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-semibold text-slate-900">
+              Últimas transacciones
             </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="space-y-2">
-                {[...Array(3)].map((_, i) => (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
                   <Skeleton key={i} className="h-10 w-full bg-white/10" />
                 ))}
               </div>
+            ) : (data?.recentTransactions ?? []).length === 0 ? (
+              <p className="text-sm text-white/50 text-center py-8">
+                Sin transacciones recientes
+              </p>
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart
-                  data={data?.paymentMethods ?? []}
-                  margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-                >
-                  <XAxis
-                    dataKey="method"
-                    tickFormatter={(v) => PAYMENT_LABELS[v] ?? v}
-                    tick={tickStyle}
-                    axisLine={{ stroke: "rgba(255,255,255,0.1)" }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                    tick={tickStyle}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    formatter={(v) => {
-                      if (v === undefined) return ["$0", "Monto"];
-                      return [formatCurrency(v as number), "Monto"];
-                    }}
-                    labelFormatter={(l) => PAYMENT_LABELS[l] ?? l}
-                    {...tooltipStyle}
-                  />
-                  <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
-                    {(data?.paymentMethods ?? []).map((entry) => (
-                      <Cell
-                        key={entry.method}
-                        fill={PAYMENT_COLORS[entry.method] ?? "#6b7280"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="space-y-3">
+                {(data?.recentTransactions ?? []).map((item, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50"
+                  >
+                    <span className="flex size-8 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-600">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {item.cashier ?? "—"}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-emerald-600">
+                      {formatCurrency(item.total)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
 
         {/* Top productos */}
-        <Card className={glassCard}>
-          <CardHeader>
-            <CardTitle className="text-base text-white">
+        <Card className="border-0 bg-white shadow-2xl rounded-2xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-semibold text-slate-900">
               Productos más vendidos hoy
             </CardTitle>
           </CardHeader>
@@ -184,19 +267,22 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {(data?.topProducts ?? []).map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 py-1">
-                    <span className="text-xs font-bold text-white/30 w-4">
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition-colors hover:bg-slate-50"
+                  >
+                    <span className="flex size-8 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-600">
                       {i + 1}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate text-white">
+                      <p className="truncate text-sm font-semibold text-slate-900">
                         {item.product?.name ?? "—"}
                       </p>
-                      <p className="text-xs text-white/50">
+                      <p className="text-xs text-slate-500">
                         {item.quantity} {item.product?.unit}
                       </p>
                     </div>
-                    <span className="text-sm font-semibold text-emerald-400">
+                    <span className="text-sm font-bold text-emerald-600">
                       {formatCurrency(item.revenue)}
                     </span>
                   </div>
@@ -207,23 +293,67 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Alertas de stock bajo */}
-      {(data?.lowStockCount ?? 0) > 0 && (
-        <Card className="backdrop-blur-xl bg-yellow-500/20 border border-yellow-400/30 shadow-2xl">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="size-4 text-yellow-400" />
-              <CardTitle className="text-base text-yellow-200">
-                Alerta de inventario
-              </CardTitle>
-              <Badge variant="warning">{data?.lowStockCount} producto(s)</Badge>
+      {/* Métodos de pago hoy */}
+      <Card className="border-0 bg-white shadow-2xl rounded-2xl">
+        <CardHeader>
+          <CardTitle className="text-base text-white">
+            Pagos de hoy por método
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full bg-white/10" />
+              ))}
             </div>
-            <CardDescription className="text-yellow-300/80">
-              Tienes productos con stock por debajo del mínimo configurado.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart
+                data={data?.paymentMethods ?? []}
+                margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+              >
+                <XAxis
+                  dataKey="method"
+                  tickFormatter={(v) => PAYMENT_LABELS[v] ?? v}
+                  tick={tickStyle}
+                  axisLine={{ stroke: "#e2e8f0" }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tickFormatter={(v) =>
+                    new Intl.NumberFormat("es-MX", {
+                      style: "currency",
+                      currency: "MXN",
+                      maximumFractionDigits: 0,
+                      notation: v >= 1000 ? "compact" : "standard",
+                    }).format(v)
+                  }
+                  tick={tickStyle}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  formatter={(v) => {
+                    if (v === undefined) return ["$0", "Monto"];
+                    return [formatCurrency(v as number), "Monto"];
+                  }}
+                  labelFormatter={(l) => PAYMENT_LABELS[l] ?? l}
+                  {...tooltipStyle}
+                />
+                <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
+                  {(data?.paymentMethods ?? []).map((entry) => (
+                    <Cell
+                      key={entry.method}
+                      fill={PAYMENT_COLORS[entry.method] ?? "#6b7280"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

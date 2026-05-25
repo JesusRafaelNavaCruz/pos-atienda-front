@@ -34,7 +34,7 @@ export function useAuth() {
       })
       subscriptionsApi.current()
         .then(({ plan }) => store.setFeatures(plan.features))
-        .catch(() => {/* features quedan vacías, hasFeature devolverá false para no-owners */})
+        .catch(() => toast.error('No se pudieron cargar los permisos del plan. Recarga la página.'))
       navigate('/app/dashboard')
     },
     onError: (err: unknown) => {
