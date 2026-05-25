@@ -327,25 +327,79 @@ export interface CartItem {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
+// export interface DashboardData {
+//   today: {
+//     sales: number;
+//     amount: number;
+//     growthVsYesterday: number | null;
+//   };
+//   month: {
+//     sales: number;
+//     amount: number;
+//     discount: number;
+//     growthVsLastMonth: number | null;
+//   };
+//   lowStockCount: number;
+//   topProducts: Array<{
+//     product: Pick<Product, "id" | "name" | "unit"> | undefined;
+//     quantity: number;
+//     revenue: number;
+//   }>;
+//   paymentMethods: Array<{ method: PaymentMethod; amount: number }>;
+// }
+
 export interface DashboardData {
-  today: {
-    sales: number;
-    amount: number;
-    growthVsYesterday: number | null;
+  period: {
+    label: string;
+    from: string;
+    to: string;
   };
-  month: {
-    sales: number;
-    amount: number;
+
+  sales: {
+    count: number;
+    revenue: number;
     discount: number;
-    growthVsLastMonth: number | null;
+    growthVsPrevious: number;
   };
-  lowStockCount: number;
-  topProducts: Array<{
-    product: Pick<Product, "id" | "name" | "unit"> | undefined;
+
+  avgTicket: {
+    value: number;
+    growthVsPrevious: number;
+  };
+
+  profit: {
+    gross: number;
+    margin: number;
+    growthVsPrevious: number;
+  };
+
+  topProducts: {
+    product: {
+      id: string;
+      name: string;
+      unit: string;
+    };
+
     quantity: number;
     revenue: number;
-  }>;
-  paymentMethods: Array<{ method: PaymentMethod; amount: number }>;
+  }[];
+
+  recentTransactions: {
+    id: string;
+    total: number;
+    cashier: string;
+    createdAt: string;
+  }[];
+
+  paymentMethods: {
+    method: "cash" | "card" | "transfer" | "mixed";
+    amount: number;
+    count: number;
+  }[];
+
+  alerts: {
+    lowStockCount: number;
+  };
 }
 
 export interface SalesSummaryToday {

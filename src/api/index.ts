@@ -210,10 +210,10 @@ export const usersApi = {
 // ─── Reports ──────────────────────────────────────────────────────────────────
 
 export const reportsApi = {
-  dashboard: async () =>
-    unwrap<DashboardData>(await api.get('/reports/dashboard')),
+  dashboard: async (params: {period?: string,  branch_id?: string,}) =>
+    unwrap<DashboardData>(await api.get('/reports/dashboard', { params })),
 
-  sales: async (params: { from: string; to: string; branch_id?: string }) =>
+  sales: async (params: { from: string; to: string; branch_id?: string, period?: string }) =>
     unwrap<object>(await api.get('/reports/sales', { params })),
 
   products: async (params: { from: string; to: string; limit?: number }) =>
