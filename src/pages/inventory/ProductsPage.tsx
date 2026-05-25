@@ -1,7 +1,7 @@
 // src/pages/inventory/ProductsPage.tsx
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Upload, AlertTriangle, Package, Loader2 } from 'lucide-react'
+import { Plus, Search, Upload, AlertTriangle, Package, Loader2, Pencil, Trash } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,8 @@ import { productsApi } from '@/api'
 import { formatCurrency, cn } from '@/lib/utils'
 import { DataTable } from '@/components/shared/Datatable'
 import type { Product } from '@/types'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import ProductForm from '@/components/forms/ProductForm';
 
 const UNIT_LABELS: Record<string, string> = {
   pza: 'pieza', kg: 'kg', g: 'g', lt: 'litro',
@@ -38,6 +40,9 @@ export default function ProductsPage() {
   const [page, setPage]       = useState(1)
   const [lowStock, setLowStock] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Product | null>(null);
+  const [isDelete, setIsDelete] = useState<Product | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', { search, page, lowStock }],
@@ -54,6 +59,24 @@ export default function ProductsPage() {
       qc.invalidateQueries({ queryKey: ['products'] })
     },
     onError: () => toast.error('Error al importar CSV'),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: productsApi.create,
+    onSuccess: () => { toast.success("Producto creado"); qc.invalidateQueries({queryKey: ["products"]}); setOpen(false) },
+    onError: () => toast.error('Error al crear producto'),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({id, data}: { id: string, data: Partial<Product>}) => productsApi.update(id, data),
+    onSuccess: () => { toast.success('Producto actualizado'); qc.invalidateQueries({ queryKey: ['products'] }); setEditing(null) },
+    onError: () => toast.error('Error al actualizar producto'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: ({id}: {id: string}) => productsApi.delete(id),
+    onSuccess: () => { toast.success('Producto eliminado'); qc.invalidateQueries({ queryKey: ['products'] }); setIsDelete(null) },
+    onError: () => toast.error('Error al eliminar producto'), 
   })
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,6 +154,24 @@ export default function ProductsPage() {
         </Badge>
       ),
     },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      cell: (row: Product) => (
+        <div className='flex items-center gap-1' onClick={(e) => e.stopPropagation()}>
+          <Can resource='product' action='update'>
+            <Button variant="ghost" size="sm" className='text-blue-600 hover:text-blue-900 hover:bg-blue-100' onClick={() => setEditing(row)}>
+              <Pencil />
+            </Button>
+          </Can>
+          <Can resource='product' action='update'>
+            <Button variant="ghost" size="sm" className='text-red-600 hover:text-red-900 hover:bg-red-100' onClick={() => setIsDelete(row)}>
+              <Trash />
+            </Button>
+          </Can>
+        </div>
+      ),
+    },
   ]
 
   return (
@@ -161,7 +202,7 @@ export default function ProductsPage() {
             <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
           </Feature>
           <Can resource="products" action="create">
-            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-500 text-white gap-2">
+            <Button onClick={() => setOpen(true)} size="sm" className="bg-indigo-600 hover:bg-indigo-500 text-white gap-2">
               <Plus className="size-4" />
               Nuevo producto
             </Button>
@@ -171,7 +212,7 @@ export default function ProductsPage() {
 
       {/* Filtros */}
       <div className="backdrop-blur-xl bg-white/80 border border-white/50 rounded-xl p-4 shadow-lg">
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 items flex-wrap">
           <div className="relative flex-1 min-w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
             <Input
@@ -208,6 +249,78 @@ export default function ProductsPage() {
         onPageChange={setPage}
         emptyMessage="No hay productos que mostrar"
       />
+
+      {/* Dialog Create Product */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 max-w-xl w-full space-y-4">
+            <DialogHeader>
+              <DialogTitle className='text-xl font-bold text-gray-900 tracking-tight'>Nuevo producto</DialogTitle>
+            </DialogHeader>
+            <ProductForm onSubmit={(data) => createMutation.mutate(data)} isLoading={createMutation.isPending} />
+        </DialogContent>        
+      </Dialog>
+
+      {/* Dialog Update Product */}
+      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null) }}>
+        <DialogContent className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 max-w-xl w-full space-y-4">
+            <DialogHeader>
+              <DialogTitle className='text-xl font-bold text-gray-900 tracking-tight'>Editar producto</DialogTitle>
+            </DialogHeader>
+            {editing && (
+              <ProductForm
+                defaultValues={{
+                  barcode: editing.barcode ?? undefined,
+                  sku: editing.sku ?? undefined,
+                  name: editing.name,
+                  description: editing.description ?? undefined,
+                  unit: editing.unit,
+                  price: editing.price ?? undefined,
+                  cost: editing.cost ?? undefined,
+                  stock: editing.stock ?? undefined,
+                  min_stock: editing.min_stock ?? undefined,
+                  sold_by_weight: editing.sold_by_weight ?? undefined,
+                  category_id: editing.category_id ?? undefined,
+                  supplier_id: editing.supplier_id ?? undefined,
+                  image_url: editing.image_url ?? undefined,
+                }}
+                onSubmit={(data) => updateMutation.mutate({id: editing.id, data})}
+                isLoading={createMutation.isPending}
+              />
+            )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Delete Product */}
+      <Dialog open={!!isDelete} onOpenChange={(o) => { if (!o) setIsDelete(null) } }>
+        <DialogContent className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 max-w-md w-full space-y-6">
+          <DialogHeader>
+            <DialogTitle>
+              ¿Eliminar este producto?
+            </DialogTitle>
+            <DialogDescription className="text-sm font-normal text-gray-500 leading-relaxed">
+              Esta acción no se puede deshacer. El producto se borrará permanentemente del inventario.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 w-full">
+            <button
+              type="button"
+              className="flex-1 py-3 px-4 bg-white border border-gray-200 text-sm font-bold text-gray-700 rounded-xl transition-all hover:bg-gray-50 active:bg-gray-100 outline-none"    
+              onClick={() => setIsDelete(null)}
+            >
+              No, cancelar
+            </button>
+            
+            <button
+              type="button"
+              className="flex-1 py-3 px-4 bg-blue-600 text-sm font-bold text-white rounded-xl transition-all shadow-md shadow-blue-600/10 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/20 active:scale-[0.98] outline-none"
+              onClick={() => {if (isDelete) deleteMutation.mutate({id: isDelete.id })}}
+            >
+              Sí, eliminar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
     </div>
   )
 }
