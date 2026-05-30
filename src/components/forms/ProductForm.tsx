@@ -16,7 +16,7 @@ const productSchema = z.object({
     sku:            z.string().trim().min(1, "El SKU es requerido").max(100),
     name:           z.string().trim().min(1, "El nombre es requerido").max(100),
     description:    z.string().trim().max(1000).optional().or(z.literal("")),
-    unit:           z.enum(["pza", "kg", "lt", "ml", "caja", "paq"]),
+    unit:           z.enum(["pza", "kg", "g", "lt", "ml", "caja", "paq", "rollo", "par"]),
     price:          z.number("El precio es requerido").min(0, " El precio no puede ser negativo"),
     cost:           z.number("El costo es requerido").min(0, " El precio no puede ser negativo"),
     stock:          z.number("La cantidad disponible es requerido").min(0, " El precio no puede ser negativo"),
