@@ -138,7 +138,7 @@ export default function DashboardPage() {
 
               <div className="space-y-1">
                 <h2 className="text-4xl font-bold tracking-tight">
-                  {data?.lowStockCount}
+                  {data?.alerts.lowStockCount}
                 </h2>
 
                 <p className="text-sm text-yellow-100/90">
