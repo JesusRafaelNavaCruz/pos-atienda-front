@@ -164,7 +164,7 @@ export default function ProductsPage() {
               <Pencil />
             </Button>
           </Can>
-          <Can resource='product' action='update'>
+          <Can resource='product' action='delete'>
             <Button variant="ghost" size="sm" className='text-red-600 hover:text-red-900 hover:bg-red-100' onClick={() => setIsDelete(row)}>
               <Trash />
             </Button>
