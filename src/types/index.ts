@@ -174,6 +174,10 @@ export interface Product {
   supplier?: Pick<Supplier, "id" | "name"> | null;
 }
 
+export type BarcodeProduct = Pick<Product, 'id' | 'name' | 'sku' | 'barcode' | 'unit' | 'price'> & {
+  sold_by_weight?: boolean
+}
+
 export interface InventoryMovement {
   id: string;
   tenant_id: string;

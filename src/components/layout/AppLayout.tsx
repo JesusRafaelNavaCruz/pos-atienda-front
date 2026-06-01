@@ -5,7 +5,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, TrendingUp,
   Users, Truck, BarChart3, Settings, LogOut,
   Menu, Wifi, WifiOff,
-  ChevronLeft
+  Barcode, ChevronLeft
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,7 @@ export function AppLayout() {
   const navItems: NavItem[] = [
     { to: '/app/dashboard',   label: 'Dashboard',    icon: LayoutDashboard },
     { to: '/app/pos',         label: 'Vender', icon: ShoppingCart },
+    { to: '/app/barcodes',    label: 'Códigos',  icon: Barcode },
     { to: '/app/inventory',   label: 'Inventario',   icon: Package,    permission: { resource: 'products',  action: 'read' } },
     { to: '/app/sales',       label: 'Ventas',       icon: TrendingUp, permission: { resource: 'sales',     action: 'read' } },
     { to: '/app/customers',   label: 'Clientes',     icon: Users,      permission: { resource: 'customers', action: 'read' }, feature: 'customers' },

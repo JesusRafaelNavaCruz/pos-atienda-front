@@ -23,6 +23,7 @@ import CustomersPage from "@/pages/customers/CustomersPage";
 import SuppliersPage from "@/pages/suppliers/SuppliersPage";
 import ReportsPage from "@/pages/reports/ReportsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
+import BarcodesPage from "@/pages/barcodes/BarcodesPage";
 
 // src/App.tsx
 export default function App() {
@@ -63,11 +64,6 @@ export default function App() {
               />
             </Route >
 
-            {/* Barcodes */}
-            <Route element={<PermissionGuard resource="barcodes" action="read" />}>
-              <Route path="barcodes" />
-            </Route>
-
             {/* Ventas */}
             <Route element={<PermissionGuard resource="sales" action="read" />}>
               <Route path="sales" element={<SalesPage />} />
@@ -90,6 +86,9 @@ export default function App() {
                 <Route path="suppliers" element={<SuppliersPage />} />
               </Route>
             </Route>
+
+            {/* Códigos de barras */}
+            <Route path="barcodes" element={<BarcodesPage />} />
 
             {/* Reportes */}
             <Route
