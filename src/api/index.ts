@@ -4,7 +4,7 @@
 
 import api from '../lib/axios';
 import type {
-  LoginResponse, AuthUser, Product, Sale, Customer,
+  LoginResponse, AuthUser, Product, BarcodeProduct, Sale, Customer,
   Supplier, User, InventoryMovement, DashboardData,
   PaginationMeta, Plan, Subscription, Branch, Role, Category,
 } from '../types'
@@ -61,6 +61,9 @@ export const productsApi = {
 
   getByBarcode: async (barcode: string) =>
     unwrap<Product>(await api.get(`/products/barcode/${encodeURIComponent(barcode)}`)),
+
+  getBarcodes: async (params?: { search?: string; only_with_barcode?: boolean }) =>
+    unwrapPaginated<BarcodeProduct>(await api.get('/products/barcodes', { params })),
 
   getLowStock: async () =>
     unwrap<Product[]>(await api.get('/products/low-stock')),
