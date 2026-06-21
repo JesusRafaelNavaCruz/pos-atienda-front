@@ -1,59 +1,37 @@
 // src/pages/settings/SettingsPage.tsx
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Plus, Loader2, CreditCard, Users, Shield, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/badge'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Can } from '@/components/layout/Guards'
 import { useAuth } from '@/hooks/useAuth'
 import { usersApi, subscriptionsApi } from '@/api'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { User, Plan } from '@/types'
+import UserForm from '@/components/forms/UserForm'
 
 const glassCard  = 'backdrop-blur-xl bg-slate-800/75 border border-white/10 shadow-2xl text-white'
-const inputClass = 'bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:ring-indigo-500'
 
 // ─── Usuarios ────────────────────────────────────────────────────────────────
-
-const newUserSchema = z.object({
-  full_name: z.string().min(2, 'Nombre requerido'),
-  email:     z.string().email('Email inválido'),
-  password:  z.string().min(8, 'Mínimo 8 caracteres'),
-  role_id:   z.string().uuid('Selecciona un rol'),
-})
-type NewUserData = z.infer<typeof newUserSchema>
 
 function UsersTab() {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
 
   const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list() })
-  const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: () => usersApi.roles() })
-
-  const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<NewUserData>({
-    resolver: zodResolver(newUserSchema),
-  })
 
   const createMutation = useMutation({
     mutationFn: usersApi.create,
-    onSuccess: () => { toast.success('Usuario creado'); qc.invalidateQueries({ queryKey: ['users'] }); setOpen(false); reset() },
-    onError: (err: unknown) => {
-      const msg = (err as any)?.response?.data?.error?.message ?? 'Error al crear usuario'
-      toast.error(msg)
-    },
+    onSuccess: () => { toast.success('Usuario creado'); qc.invalidateQueries({ queryKey: ['users'] }); setOpen(false); },
+    onError: () => toast.error('Error al crear usuario'),
   })
 
   const toggleMutation = useMutation({
@@ -113,56 +91,16 @@ function UsersTab() {
         </CardContent>
       </Card>
 
-      {/* Modal nuevo usuario */}
-      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset() }}>
-        <DialogContent className="backdrop-blur-xl bg-slate-900 border-white/10 text-white">
+      {/* Dialog Create User */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 max-w-xl w-full space-y-4">
           <DialogHeader>
-            <DialogTitle className="text-white">Nuevo usuario</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit((data) => createMutation.mutate(data))} className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-white/80">Nombre completo *</Label>
-              <Input className={inputClass} {...register('full_name')} placeholder="Juan García" />
-              {errors.full_name && <p className="text-xs text-red-400">{errors.full_name.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white/80">Correo *</Label>
-              <Input className={inputClass} {...register('email')} type="email" placeholder="usuario@tienda.com" />
-              {errors.email && <p className="text-xs text-red-400">{errors.email.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white/80">Contraseña *</Label>
-              <Input className={inputClass} {...register('password')} type="password" placeholder="Mínimo 8 caracteres" />
-              {errors.password && <p className="text-xs text-red-400">{errors.password.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label className="text-white/80">Rol *</Label>
-              <Select onValueChange={(v) => setValue('role_id', v)}>
-                <SelectTrigger className={inputClass}>
-                  <SelectValue placeholder="Seleccionar rol" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-white/10 text-white">
-                  {(roles ?? []).map((role) => (
-                    <SelectItem key={role.id} value={role.id} className="focus:bg-white/10 focus:text-white">
-                      {role.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.role_id && <p className="text-xs text-red-400">{errors.role_id.message}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="submit" disabled={createMutation.isPending}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white"
-              >
-                {createMutation.isPending && <Loader2 className="size-4 animate-spin" />}
-                Crear usuario
-              </Button>
-            </DialogFooter>
-          </form>
+            <DialogTitle className='text-xl font-bold text-gray-900 tracking-tight'>Nuevo usuario</DialogTitle>
+          </DialogHeader> 
+          <UserForm onSubmit={(data) => createMutation.mutate(data)} isLoading={createMutation.isPending} />
         </DialogContent>
       </Dialog>
+
     </div>
   )
 }
