@@ -7,6 +7,7 @@ import type {
   LoginResponse, AuthUser, Product, BarcodeProduct, Sale, Customer,
   Supplier, User, InventoryMovement, DashboardData,
   PaginationMeta, Plan, Subscription, Branch, Role, Category,
+  MercadoPagoConnection,
 } from '../types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -248,6 +249,22 @@ export const subscriptionsApi = {
 
   cancel: async () =>
     unwrap<{ message: string; endsAt: string }>(await api.post('/subscriptions/cancel')),
+}
+
+// ─── Proveedores de pago ────────────────────────────────────────────────────
+
+// Mercado Pago: vinculación OAuth de la cuenta del comercio (terminales Smart y
+// cobro con tarjeta). Solo accesible para el owner y requiere el feature
+// 'card_payments' del plan activo.
+export const mercadoPagoApi = {
+  getConnection: async () =>
+    unwrap<MercadoPagoConnection | null>(await api.get('/mercadopago/oauth/connection')),
+
+  connect: async () =>
+    unwrap<{ authorization_url: string }>(await api.get('/mercadopago/oauth/connect')),
+
+  disconnect: async () =>
+    unwrap<undefined>(await api.delete('/mercadopago/oauth/connection')),
 }
 
 // ─── Branches / Categories ────────────────────────────────────────────────────

@@ -1,7 +1,8 @@
 // src/pages/settings/SettingsPage.tsx
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Loader2, CreditCard, Users, Shield, ExternalLink } from 'lucide-react'
+import { Plus, Loader2, CreditCard, Users, Shield, ExternalLink, HandCoins } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +18,7 @@ import { usersApi, subscriptionsApi } from '@/api'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { User, Plan } from '@/types'
 import UserForm from '@/components/forms/UserForm'
+import PaymentSuppliers from '@/components/tabsContent/PaymentSuppliers'
 
 const glassCard  = 'backdrop-blur-xl bg-slate-800/75 border border-white/10 shadow-2xl text-white'
 
@@ -354,12 +356,25 @@ function SubscriptionTab() {
 
 export default function SettingsPage() {
   const { isOwner } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // El tab activo vive en la URL (?tab=) para poder regresar aquí desde flujos
+  // externos, como el checkout de Stripe o el callback OAuth de Mercado Pago.
+  const availableTabs = ['users', ...(isOwner ? ['roles', 'subscription', 'paymentSuppliers'] : [])]
+  const requestedTab = searchParams.get('tab')
+  const activeTab = requestedTab && availableTabs.includes(requestedTab) ? requestedTab : 'users'
+
+  const handleTabChange = (value: string) => {
+    const next = new URLSearchParams(searchParams)
+    next.set('tab', value)
+    setSearchParams(next, { replace: true })
+  }
 
   return (
     <div className="p-6 space-y-6">
       <PageHeader title="Configuración" description="Gestiona usuarios, roles y tu suscripción" />
 
-      <Tabs defaultValue="users" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList>
           <TabsTrigger value="users" className="gap-2">
             <Users className="size-4" /> Usuarios
@@ -374,11 +389,17 @@ export default function SettingsPage() {
               <CreditCard className="size-4" /> Suscripción
             </TabsTrigger>
           )}
+          {isOwner && (
+            <TabsTrigger value="paymentSuppliers" className="gap-2">
+              <HandCoins className="size-4" /> Pagos
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="users"><UsersTab /></TabsContent>
         {isOwner && <TabsContent value="roles"><RolesTab /></TabsContent>}
         {isOwner && <TabsContent value="subscription"><SubscriptionTab /></TabsContent>}
+        {isOwner && <TabsContent value="paymentSuppliers"><PaymentSuppliers /></TabsContent>}
       </Tabs>
     </div>
   )

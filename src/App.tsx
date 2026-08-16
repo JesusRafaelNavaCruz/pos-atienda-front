@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import {
+  AdminAuthGuard,
+  AdminGuestGuard,
   AuthGuard,
   FeatureGuard,
   GuestGuard,
@@ -8,10 +10,17 @@ import {
 
 // Layouts y guards
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 
 // Páginas de autenticación
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
+
+// Páginas del panel SuperAdmin
+import AdminLoginPage from "@/pages/admin/auth/AdminLoginPage";
+import AdminDashboardPage from "@/pages/admin/dashboard/AdminDashboardPage";
+import SuscriptionsPage from "@/pages/admin/suscriptions/SuscriptionsPage";
+import TenantsPage from "@/pages/admin/tenants/TenantsPage";
 
 // Páginas de la app
 import DashboardPage from "@/pages/dashboard/DashboardPage";
@@ -107,6 +116,24 @@ export default function App() {
               path="*"
               element={<Navigate to="/app/dashboard" replace />}
             />
+          </Route>
+        </Route>
+
+        {/* Rutas del panel SuperAdmin — solo accesibles sin sesión de admin */}
+        <Route element={<AdminGuestGuard />}>
+          <Route path="/admin/login" element={<AdminLoginPage />} />
+        </Route>
+
+        {/* Rutas del panel SuperAdmin — requieren sesión activa de admin */}
+        <Route element={<AdminAuthGuard />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboardPage />} />
+            <Route path="plans" element={<SuscriptionsPage />} />
+            <Route path="tenants" element={<TenantsPage />} />
+
+            {/* Catch-all dentro de /admin */}
+            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Route>
         </Route>
 
