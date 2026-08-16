@@ -82,7 +82,7 @@ export function useRequireFeature(key: FeatureKey) {
   const { hasFeature } = useAuthStore()
   const navigate = useNavigate()
   const allowed = hasFeature(key)
-  if (!allowed) navigate('/app/settings/subscription')
+  if (!allowed) navigate('/app/settings?tab=subscription')
   return allowed
 }
 

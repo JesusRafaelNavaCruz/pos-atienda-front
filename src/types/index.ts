@@ -297,6 +297,15 @@ export interface Subscription {
   canceledAt: string | null;
 }
 
+// ─── Proveedores de pago ───────────────────────────────────────────────────────
+
+export interface MercadoPagoConnection {
+  collector_id: string;
+  is_active: boolean;
+  token_expires_at: string;
+  updated_at: string;
+}
+
 // ─── API Response wrappers ────────────────────────────────────────────────────
 
 export interface ApiSuccess<T> {

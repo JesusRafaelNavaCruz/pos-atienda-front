@@ -1,7 +1,22 @@
 // src/components/layout/Guards.tsx
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
+import { useAdminAuthStore } from '@/store/admin-auth.store'
 import type { FeatureKey } from '@/types'
+
+// Requiere sesión activa de SuperAdmin
+export function AdminAuthGuard() {
+  const admin = useAdminAuthStore((s) => s.admin)
+  if (!admin) return <Navigate to="/admin/login" replace />
+  return <Outlet />
+}
+
+// Requiere que NO haya sesión de SuperAdmin (para /admin/login)
+export function AdminGuestGuard() {
+  const admin = useAdminAuthStore((s) => s.admin)
+  if (admin) return <Navigate to="/admin/dashboard" replace />
+  return <Outlet />
+}
 
 // Requiere sesión activa
 export function AuthGuard() {
@@ -35,7 +50,7 @@ export function PermissionGuard({ resource, action, fallback }: PermissionGuardP
 interface FeatureGuardProps { feature: FeatureKey }
 export function FeatureGuard({ feature }: FeatureGuardProps) {
   const hasFeature = useAuthStore((s) => s.hasFeature)
-  if (!hasFeature(feature)) return <Navigate to="/app/settings/subscription" replace />
+  if (!hasFeature(feature)) return <Navigate to="/app/settings?tab=subscription" replace />
   return <Outlet />
 }
 
