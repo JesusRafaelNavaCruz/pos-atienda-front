@@ -278,7 +278,6 @@ export default function ProductsPage() {
                   cost: editing.cost ?? undefined,
                   stock: editing.stock ?? undefined,
                   min_stock: editing.min_stock ?? undefined,
-                  sold_by_weight: editing.sold_by_weight ?? undefined,
                   category_id: editing.category_id ?? undefined,
                   supplier_id: editing.supplier_id ?? undefined,
                   image_url: editing.image_url ?? undefined,

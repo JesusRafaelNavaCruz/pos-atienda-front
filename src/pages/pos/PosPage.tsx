@@ -6,7 +6,7 @@
 //   - Cobro en efectivo y tarjeta
 //   - Impresión de ticket
 
-import { useState, useRef, useCallback, type ElementType } from "react";
+import { useState, useRef, useCallback, useMemo, type ElementType } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -40,7 +40,19 @@ import { productsApi, salesApi } from "@/api";
 import { getProductByBarcode } from "@/lib/db";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { CartItem, PaymentMethod, Product } from "@/types";
+import type { AddItemResult } from "@/store/cart.store";
 import ProductForm from "@/components/forms/ProductForm";
+
+// Avisa cuando el stock disponible no alcanzó para agregar todo lo pedido.
+function notifyAddResult(result: AddItemResult, productName: string) {
+  if (result.added === 0) {
+    toast.error(`Sin stock disponible de "${productName}"`);
+  } else if (result.limitedByStock) {
+    toast.warning(
+      `Solo se agregaron ${result.added} de ${result.requested} — quedan ${result.availableStock ?? 0} en existencia de "${productName}"`,
+    );
+  }
+}
 
 // ─── Toolbar: estado de un periférico (báscula, impresora) ──────────────────
 
@@ -86,15 +98,33 @@ function PeripheralPill({
 
 function ProductCard({
   product,
+  reservedQty,
   onAdd,
 }: {
   product: Product;
+  reservedQty: number;
   onAdd: (product: Product) => void;
 }) {
+  // Lo que ya está en el carrito "reserva" stock hasta cobrar o quitarlo.
+  // Aplica igual a piezas y a granel (kg/g/lt/ml): 24kg de huevo con 500g en
+  // el carrito deben mostrar 23.5kg disponibles, no 24kg fijos.
+  const availableStockRaw = Math.max(0, product.stock - reservedQty);
+  const availableStock = product.sold_by_weight
+    ? Math.round(availableStockRaw * 1000) / 1000
+    : availableStockRaw;
+  const outOfStock = availableStock <= 0;
+
   return (
     <button
       onClick={() => onAdd(product)}
-      className="bg-white border border-slate-200 rounded-xl p-3 hover:border-indigo-300 hover:shadow-md transition-all text-left group"
+      disabled={outOfStock}
+      title={outOfStock ? "Sin stock disponible" : undefined}
+      className={cn(
+        "rounded-xl p-3 text-left group transition-all",
+        outOfStock
+          ? "bg-slate-50 border border-slate-100 opacity-60 cursor-not-allowed"
+          : "bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md",
+      )}
     >
       <div className="mb-2 h-24 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
         <ShoppingCart className="text-slate-300 size-8" />
@@ -105,8 +135,13 @@ function ProductCard({
       </p>
       <div className="flex justify-between items-center">
         <span className="text-base font-bold text-indigo-600">{formatCurrency(product.price)}</span>
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-          {product.stock} {product.unit}
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-xs font-medium",
+            outOfStock ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-500",
+          )}
+        >
+          {outOfStock ? "Sin stock" : `${availableStock} ${product.unit}`}
         </span>
       </div>
     </button>
@@ -331,7 +366,8 @@ export default function PosPage() {
       if (product.sold_by_weight && scale.weight) {
         qty = scale.weight;
       }
-      cart.addItem(product, qty);
+      const result = cart.addItem(product, qty);
+      notifyAddResult(result, product.name);
       setSearch("");
       setResults([]);
     },
@@ -340,6 +376,12 @@ export default function PosPage() {
 
   useBarcodeScan({
     onScan: async (code) => {
+      // El lector escribe en el buscador (tiene foco por autoFocus); limpiamos
+      // lo que haya tecleado ahí y cancelamos la búsqueda en vivo pendiente.
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+      setSearch("");
+      setResults([]);
+
       let product = await getProductByBarcode(code);
       if (!product) {
         try {
@@ -353,18 +395,23 @@ export default function PosPage() {
           return;
         }
       }
-      cart.addItem(product);
-      toast.success(`${product.name} agregado`);
+      const result = cart.addItem(product);
+      if (result.added > 0) toast.success(`${product.name} agregado`);
+      notifyAddResult(result, product.name);
     },
   });
 
   const createProductMutation = useMutation({
     mutationFn: productsApi.create,
     onSuccess: (product) => {
-      toast.success(`${product.name} registrado y agregado al carrito`);
+      const result = cart.addItem(product);
+      toast.success(
+        result.added > 0
+          ? `${product.name} registrado y agregado al carrito`
+          : `${product.name} registrado (sin stock para agregarlo al carrito)`,
+      );
       qc.invalidateQueries({ queryKey: ["pos-products"] });
       qc.invalidateQueries({ queryKey: ["products"] });
-      cart.addItem(product);
       setRegisterOpen(false);
       setNotFoundBarcode(null);
     },
@@ -411,6 +458,8 @@ export default function PosPage() {
       cart.clearCart();
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       qc.invalidateQueries({ queryKey: ["pos-low-stock"] });
+      // Refresca el stock mostrado en el grid con lo que quedó tras la venta.
+      qc.invalidateQueries({ queryKey: ["pos-products"] });
     },
     onError: (err: unknown) => {
       const msg =
@@ -426,6 +475,14 @@ export default function PosPage() {
     ? defaultProducts?.data ?? []
     : results;
 
+  // Cuánto de cada producto ya está "reservado" en el carrito, para descontarlo
+  // del stock disponible que se muestra en el grid (y no dejar sobrevender).
+  const cartQtyByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of cart.items) map.set(item.product.id, item.quantity);
+    return map;
+  }, [cart.items]);
+
   return (
     <div className="h-full flex flex-col bg-slate-50 pos-no-select">
       {/* Toolbar: búsqueda + periféricos + alerta de stock bajo */}
@@ -439,6 +496,7 @@ export default function PosPage() {
               onChange={(e) => handleSearch(e.target.value)}
               className="pl-9 h-10"
               autoFocus
+              data-barcode-input="true"
             />
           </div>
 
@@ -515,6 +573,7 @@ export default function PosPage() {
                 <ProductCard
                   key={product.id}
                   product={product}
+                  reservedQty={cartQtyByProduct.get(product.id) ?? 0}
                   onAdd={addProduct}
                 />
               ))}
@@ -560,7 +619,12 @@ export default function PosPage() {
                   <CartItemSidebar
                     key={item.product.id}
                     item={item}
-                    onQtyChange={cart.updateQuantity}
+                    onQtyChange={(productId, qty) => {
+                      const result = cart.updateQuantity(productId, qty);
+                      if (!result.ok && result.clampedTo !== null) {
+                        toast.warning(`Solo hay ${result.clampedTo} disponibles de "${item.product.name}"`);
+                      }
+                    }}
                     onRemove={cart.removeItem}
                   />
                 ))}

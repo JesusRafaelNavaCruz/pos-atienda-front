@@ -27,9 +27,17 @@ export function useBarcodeScan({
     (e: KeyboardEvent) => {
       if (!enabled) return
 
-      // Ignorar si el foco está en un input o textarea (el usuario está escribiendo)
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      // Ignorar si el foco está en un input/textarea/select (el usuario está
+      // escribiendo), salvo que ese campo se haya marcado explícitamente como
+      // apto para recibir el lector (data-barcode-input="true"), como el buscador
+      // del POS: un lector físico dispara los mismos eventos de teclado que un
+      // usuario, así que si el buscador tiene foco (autoFocus) el escaneo debe
+      // seguir funcionando ahí. El propio umbral de velocidad (maxKeyInterval)
+      // ya evita confundir tecleo humano normal con un lector.
+      const target = e.target as HTMLElement
+      const tag = target.tagName
+      const isScanFriendly = target.dataset.barcodeInput === 'true'
+      if (!isScanFriendly && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')) return
 
       const now = Date.now()
 
